@@ -1245,6 +1245,34 @@ function shareMonthlyReport() {
   window.open(`https://wa.me/5511968491822?text=${encodeURIComponent(msg.trim())}`, '_blank');
 }
 
+// ── EXPOSE TO WINDOW (required for type="module") ────
+window.changeMonth         = changeMonth;
+window.openDaySheet        = openDaySheet;
+window.saveDaySheet        = saveDaySheet;
+window.closeOverlay        = closeOverlay;
+window.toggleCheck         = toggleCheck;
+window.openTimePicker      = openTimePicker;
+window.selectTime          = selectTime;
+window.closeTimePicker     = closeTimePicker;
+window.openDayNotes        = openDayNotes;
+window.saveDayNote         = saveDayNote;
+window.deleteDayNote       = deleteDayNote;
+window.showScreen          = showScreen;
+window.openNewPatientSheet = openNewPatientSheet;
+window.savePatient         = savePatient;
+window.deletePatient       = deletePatient;
+window.openEditPatientSheet= openEditPatientSheet;
+window.openDetail          = openDetail;
+window.toggleNF            = toggleNF;
+window.removeSession       = removeSession;
+window.openSessionEdit     = openSessionEdit;
+window.toggleEditTime      = toggleEditTime;
+window.saveSessionEdit     = saveSessionEdit;
+window.openNewPackageSheet = openNewPackageSheet;
+window.saveNewPackage      = saveNewPackage;
+window.shareReport         = shareReport;
+window.shareMonthlyReport  = shareMonthlyReport;
+
 // ── INIT ────────────────────────────────
 async function init() {
   document.getElementById('loading-screen').style.display = 'flex';
