@@ -1161,7 +1161,7 @@ function shareReport(patientId, pkgId) {
     });
     msg += `  📝 NF: ${db.nf[nfKey]?'Emitida ✓':'Pendente'}\n\n`;
   });
-  window.open(`https://wa.me/?text=${encodeURIComponent(msg.trim())}`, '_blank');
+  window.open(`https://wa.me/5511968491822?text=${encodeURIComponent(msg.trim())}`, '_blank');
 }
 
 // ── MONTHLY REPORT ───────────────────────
@@ -1242,7 +1242,7 @@ function shareMonthlyReport() {
     msg += `\n💰 *Total estimado do mês: R$ ${totalReceivable.toLocaleString('pt-BR', {minimumFractionDigits:2})}*\n`;
   }
 
-  window.open(`https://wa.me/?text=${encodeURIComponent(msg.trim())}`, '_blank');
+  window.open(`https://wa.me/5511968491822?text=${encodeURIComponent(msg.trim())}`, '_blank');
 }
 
 // ── INIT ────────────────────────────────
