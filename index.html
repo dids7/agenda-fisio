@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Agenda Fisio</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --primary: #C4727A; --primary-light: #F9EDEE; --primary-mid: #E8B4B8;
+    --accent: #C4694F;  --accent-light: #F9EDE9;
+    --gold: #D4A96A;    --gold-light: #FBF2E4;
+    --slate: #A08C8E;   --slate-light: #F0EAEA;
+    --done-green: #4A9B6F;  --done-green-light: #E8F5EE;
+    --future-blue: #5B85C4; --future-blue-light: #EAF0FB;
+    --purple: #8B6BB1;      --purple-light: #F0EAF8;
+    --dark: #2C1F20; --gray: #9A8585; --gray-light: #FBF8F6;
+    --border: #EDE0DF; --white: #FFFFFF;
+    --danger: #D95555; --danger-light: #FDEAEA;
+    --card-shadow: 0 2px 12px rgba(180,100,100,0.08);
+  }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: #E8DADA; min-height: 100vh; display: flex; justify-content: center; }
+  .phone { width: 100%; max-width: 390px; min-height: 100vh; background: var(--gray-light); position: relative; box-shadow: 0 0 50px rgba(150,60,60,0.15); }
+
+  /* SCREENS */
+  .screen { display: none; flex-direction: column; min-height: 100vh; padding-bottom: 70px; }
+  .screen.active { display: flex; }
+  .scroll-body { flex: 1; overflow-y: auto; }
+  .scroll-body::-webkit-scrollbar { display: none; }
+
+  /* BOTTOM NAV */
+  .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 390px; background: var(--white); border-top: 1px solid var(--border); display: flex; z-index: 50; }
+  .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 10px 4px 12px; cursor: pointer; border: none; background: none; color: var(--gray); font-size: 10px; font-weight: 500; gap: 4px; transition: color 0.15s; }
+  .nav-item.active { color: var(--primary); }
+  .nav-item svg { width: 22px; height: 22px; stroke-width: 1.8; }
+
+  /* HEADER */
+  .header { background: var(--white); padding: 52px 20px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .header-row { display: flex; justify-content: space-between; align-items: flex-end; }
+  .header h1 { font-size: 24px; font-weight: 700; color: var(--dark); letter-spacing: -0.5px; }
+  .header-sub { font-size: 13px; color: var(--gray); margin-top: 2px; }
+
+  /* CALENDAR */
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 8px; }
+  .cal-nav-btn { width: 34px; height: 34px; border-radius: 50%; border: 1.5px solid var(--border); background: var(--white); cursor: pointer; font-size: 18px; color: var(--dark); display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+  .cal-nav-btn:active { background: var(--primary-light); border-color: var(--primary); }
+  .cal-month-label { font-size: 17px; font-weight: 700; color: var(--dark); letter-spacing: -0.3px; }
+  .cal-grid-wrap { padding: 0 10px 10px; }
+  .cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 2px; }
+  .cal-wd { text-align: center; font-size: 10px; font-weight: 600; color: var(--gray); padding: 4px 0; text-transform: uppercase; letter-spacing: 0.3px; }
+  .cal-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
+  .cal-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 10px; cursor: pointer; transition: background 0.1s; gap: 2px; user-select: none; }
+  .cal-day:active { background: var(--primary-light); }
+  .cal-day.empty { cursor: default; pointer-events: none; }
+  .cal-day .day-num { font-size: 14px; font-weight: 500; color: var(--dark); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+  .cal-day.today .day-num { background: var(--gold); color: var(--white); font-weight: 700; }
+  .cal-day .day-dot { width: 5px; height: 5px; border-radius: 50%; opacity: 0; }
+  .cal-day .note-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--gold); opacity: 0; margin-top: 1px; }
+  .cal-day.has-note .note-dot { opacity: 1; }
+  .cal-day.has-past .day-dot { opacity: 1; background: var(--done-green); }
+  .cal-day.has-past .day-num { color: var(--done-green); font-weight: 600; }
+  .cal-day.has-future .day-dot { opacity: 1; background: var(--future-blue); }
+  .cal-day.has-future .day-num { color: var(--future-blue); font-weight: 600; }
+  .cal-day.has-both .day-dot { opacity: 1; background: var(--done-green); }
+  .cal-day.has-both .day-num { color: var(--done-green); font-weight: 600; }
+  .cal-day.has-pkg-done .day-dot { opacity: 1; background: var(--purple); }
+  .cal-day.has-pkg-done .day-num { color: var(--purple); font-weight: 600; }
+  .cal-day.today.has-past .day-num,
+  .cal-day.today.has-future .day-num,
+  .cal-day.today.has-both .day-num,
+  .cal-day.today.has-pkg-done .day-num { color: var(--white); }
+
+  /* MONTH BAR */
+  .month-bar { margin: 0 12px 12px; background: var(--white); border-radius: 18px; padding: 14px 16px; display: flex; border: 1px solid var(--border); box-shadow: var(--card-shadow); }
+  .month-stat { flex: 1; text-align: center; }
+  .month-stat + .month-stat { border-left: 1px solid var(--border); }
+  .month-stat .ms-val { font-size: 20px; font-weight: 700; color: var(--dark); }
+  .month-stat .ms-lbl { font-size: 10px; color: var(--gray); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.3px; }
+
+  /* PATIENTS LIST */
+  .patients-list-wrap { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .patient-card { background: var(--white); border-radius: 18px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; border: 1px solid var(--border); box-shadow: var(--card-shadow); transition: border-color 0.15s, transform 0.1s; }
+  .patient-card:active { border-color: var(--primary-mid); transform: scale(0.99); }
+  .patient-card.completed { border-color: var(--slate-light); background: var(--slate-light); }
+  .patient-avatar { width: 44px; height: 44px; border-radius: 14px; background: var(--primary-light); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: var(--primary); flex-shrink: 0; }
+  .patient-avatar.done-avatar { background: var(--slate-light); color: var(--slate); }
+  .patient-card-info { flex: 1; min-width: 0; }
+  .patient-card-name { font-size: 15px; font-weight: 600; color: var(--dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .patient-card-meta { font-size: 12px; color: var(--gray); margin-top: 3px; }
+  .patient-card-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+  .prog-label { font-size: 11px; font-weight: 600; color: var(--primary); }
+  .prog-label.done-label { color: var(--slate); }
+  .prog-bar-mini { width: 48px; height: 4px; background: var(--primary-light); border-radius: 2px; overflow: hidden; }
+  .prog-bar-mini-fill { height: 100%; background: var(--primary); border-radius: 2px; }
+  .prog-bar-mini.done-bar { background: var(--slate-light); }
+  .prog-bar-mini-fill.done-fill { background: var(--slate); }
+  
+  .completed-badge { font-size: 10px; font-weight: 700; color: var(--slate); background: white; border: 1.5px solid var(--slate); border-radius: 20px; padding: 3px 8px; white-space: nowrap; letter-spacing: 0.2px; }
+
+  /* FAB */
+  .add-fab { position: fixed; bottom: 82px; right: calc(50% - 190px + 16px); width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--accent)); border: none; color: white; font-size: 26px; cursor: pointer; box-shadow: 0 4px 20px rgba(196,114,122,0.45); display: flex; align-items: center; justify-content: center; transition: transform 0.15s; z-index: 49; }
+  .add-fab:active { transform: scale(0.93); }
+
+  /* EMPTY */
+  .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; text-align: center; }
+  .empty-state .es-icon { font-size: 52px; margin-bottom: 14px; }
+  .empty-state p { font-size: 14px; color: var(--gray); line-height: 1.6; }
+
+  /* DETAIL */
+  .detail-header { background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%); padding: 52px 20px 24px; flex-shrink: 0; }
+  .detail-header.done-header { background: linear-gradient(135deg, var(--slate) 0%, #8A7A7C 100%); }
+  .detail-back { display: flex; align-items: center; gap: 6px; background: none; border: none; color: rgba(255,255,255,0.8); font-size: 14px; cursor: pointer; margin-bottom: 16px; padding: 0; }
+  .detail-name { font-size: 26px; font-weight: 700; color: white; letter-spacing: -0.5px; }
+  .detail-sub { font-size: 13px; color: rgba(255,255,255,0.7); margin-top: 4px; }
+
+  /* PACKAGE TABS */
+  .pkg-tabs-wrap { padding: 12px 12px 0; display: flex; gap: 6px; overflow-x: auto; flex-shrink: 0; }
+  .pkg-tabs-wrap::-webkit-scrollbar { display: none; }
+  .pkg-tab { padding: 7px 14px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--white); font-size: 13px; font-weight: 500; color: var(--gray); cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: all 0.15s; }
+  .pkg-tab.active { background: var(--primary); border-color: var(--primary); color: white; font-weight: 700; }
+  .pkg-tab.done-tab.active { background: var(--slate); border-color: var(--slate); }
+  .new-pkg-btn { padding: 7px 14px; border-radius: 20px; border: 1.5px dashed var(--primary-mid); background: var(--primary-light); font-size: 13px; font-weight: 600; color: var(--primary); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+
+  /* PROGRESS CARD */
+  .detail-progress-wrap { background: var(--white); margin: 12px 12px 8px; border-radius: 18px; padding: 20px; border: 1px solid var(--border); box-shadow: var(--card-shadow); display: flex; align-items: center; gap: 20px; }
+  .progress-ring-wrap { flex-shrink: 0; position: relative; width: 80px; height: 80px; }
+  .progress-ring-wrap svg { transform: rotate(-90deg); }
+  .ring-bg { fill: none; stroke: var(--primary-light); stroke-width: 7; }
+  .ring-fill { fill: none; stroke: var(--primary); stroke-width: 7; stroke-linecap: round; transition: stroke-dashoffset 0.5s ease; }
+  .ring-bg.done-ring { stroke: var(--slate-light); }
+  .ring-fill.done-ring-fill { stroke: var(--slate); }
+  
+  .ring-text { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .ring-text .rt-num { font-size: 20px; font-weight: 700; color: var(--dark); line-height: 1; }
+  .ring-text .rt-lbl { font-size: 9px; color: var(--gray); text-transform: uppercase; letter-spacing: 0.3px; margin-top: 1px; }
+  .progress-info { flex: 1; }
+  .progress-info .pi-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .progress-info .pi-row:last-child { margin-bottom: 0; }
+  .pi-label { font-size: 13px; color: var(--gray); }
+  .pi-val { font-size: 14px; font-weight: 700; color: var(--dark); }
+  .pi-val.done-val { color: var(--primary); }
+  .pi-val.remaining-val { color: var(--gold); }
+
+  /* SECTION CARD */
+  .section-card { background: var(--white); margin: 0 12px 8px; border-radius: 18px; border: 1px solid var(--border); overflow: hidden; box-shadow: var(--card-shadow); }
+  .section-title { font-size: 11px; font-weight: 700; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 16px 8px; border-bottom: 1px solid var(--border); }
+  .nf-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .nf-row:last-child { border-bottom: none; }
+  .nf-month-label { font-size: 14px; font-weight: 500; color: var(--dark); }
+  .nf-count { font-size: 12px; color: var(--gray); margin-top: 1px; }
+  .nf-badge { font-size: 11px; font-weight: 600; padding: 5px 11px; border-radius: 20px; border: none; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .nf-badge.pending { background: var(--gold-light); color: var(--gold); }
+  .nf-badge.issued  { background: var(--primary-light); color: var(--primary); }
+  .session-item { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 1px solid var(--border); }
+  .session-item:last-child { border-bottom: none; }
+  .session-date-box { background: var(--primary-light); border-radius: 10px; padding: 5px 9px; text-align: center; flex-shrink: 0; min-width: 42px; }
+  .session-date-box.done-box { background: var(--slate-light); }
+  .sd-day   { font-size: 16px; font-weight: 700; color: var(--primary); line-height: 1; }
+  .sd-month { font-size: 9px; font-weight: 600; color: var(--primary); text-transform: uppercase; }
+  .sd-day.done-day { color: var(--slate); }
+  .sd-month.done-month { color: var(--slate); }
+  .session-label { font-size: 14px; font-weight: 500; color: var(--dark); flex: 1; }
+  .session-del { background: none; border: none; color: var(--gray); font-size: 18px; cursor: pointer; padding: 4px 2px; }
+
+  /* ACTION BUTTONS */
+  .share-btn { margin: 0 12px 8px; width: calc(100% - 24px); background: #25D366; color: white; border: none; border-radius: 16px; padding: 15px 20px; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; font-size: 15px; font-weight: 700; }
+  .share-btn:active { background: #1ebe5a; }
+  .edit-patient-btn { margin: 0 12px 8px; width: calc(100% - 24px); background: var(--white); color: var(--dark); border: 1.5px solid var(--border); border-radius: 16px; padding: 13px 20px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; font-size: 14px; font-weight: 600; box-shadow: var(--card-shadow); }
+  .complete-pkg-btn { margin: 0 12px 8px; width: calc(100% - 24px); background: var(--slate-light); color: var(--slate); border: 1.5px solid var(--slate); border-radius: 16px; padding: 13px 20px; display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; font-size: 14px; font-weight: 600; }
+
+  /* COMPLETED BANNER */
+  .completed-banner { margin: 0 12px 8px; background: var(--slate-light); border: 1.5px solid var(--slate); border-radius: 18px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
+  .completed-banner .cb-icon { font-size: 24px; flex-shrink: 0; }
+  .completed-banner .cb-title { font-size: 14px; font-weight: 700; color: var(--slate); }
+  .completed-banner .cb-sub   { font-size: 12px; color: var(--gray); margin-top: 2px; }
+
+  /* MONTHLY REPORT BTN */
+  .month-report-btn {
+    margin: 0 12px 16px; width: calc(100% - 24px);
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white; border: none; border-radius: 16px;
+    padding: 14px 20px; display: flex; align-items: center; justify-content: center;
+    gap: 10px; cursor: pointer; font-size: 14px; font-weight: 700;
+    box-shadow: 0 4px 16px rgba(196,114,122,0.35); transition: opacity 0.15s;
+  }
+  .month-report-btn:active { opacity: 0.9; }
+
+  /* ALERT BANNERS */
+  .alert-banner { margin: 0 12px 8px; border-radius: 18px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
+  .alert-banner.warning { background: #FEF6E4; border: 1.5px solid #E8C96A; }
+  .alert-banner.danger  { background: #FDEAEA; border: 1.5px solid #D95555; }
+  .alert-banner .ab-icon  { font-size: 22px; flex-shrink: 0; }
+  .alert-banner .ab-title { font-size: 14px; font-weight: 700; }
+  .alert-banner.warning .ab-title { color: #B8882A; }
+  .alert-banner.danger  .ab-title { color: var(--danger); }
+  .alert-banner .ab-sub { font-size: 12px; color: var(--gray); margin-top: 2px; }
+
+  /* OVERLAYS */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; align-items: flex-end; justify-content: center; }
+  .overlay.open { display: flex; }
+  .sheet { background: var(--white); border-radius: 22px 22px 0 0; width: 100%; max-width: 390px; padding: 0 0 24px; max-height: 88vh; display: flex; flex-direction: column; }
+  .sheet-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 14px auto 0; flex-shrink: 0; }
+  .sheet-header { padding: 14px 20px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .sheet-header h2 { font-size: 17px; font-weight: 700; color: var(--dark); }
+  .sheet-header p  { font-size: 13px; color: var(--gray); margin-top: 2px; }
+  .sheet-body   { flex: 1; overflow-y: auto; padding: 12px 20px; }
+  .sheet-body::-webkit-scrollbar { display: none; }
+  .sheet-footer { padding: 12px 20px 0; border-top: 1px solid var(--border); flex-shrink: 0; }
+
+  /* CHECK ITEMS */
+  .patient-check-item { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--border); user-select: none; }
+  .patient-check-item:last-child { border-bottom: none; }
+  .pci-check-wrap { display: flex; align-items: center; gap: 10px; flex: 1; cursor: pointer; min-width: 0; }
+  .pci-name { font-size: 15px; font-weight: 500; color: var(--dark); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pci-check { width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--border); background: var(--white); display: flex; align-items: center; justify-content: center; font-size: 13px; color: white; flex-shrink: 0; transition: all 0.15s; }
+  .pci-check.checked { background: var(--primary); border-color: var(--primary); }
+  .time-btn { flex-shrink: 0; padding: 5px 10px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--gray-light); font-size: 12px; font-weight: 600; color: var(--gray); cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .time-btn.has-time { background: var(--primary-light); border-color: var(--primary-mid); color: var(--primary); }
+
+  /* FORMS */
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 11px; font-weight: 700; color: var(--gray); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 7px; }
+  .form-group input { width: 100%; padding: 13px 14px; border: 1.5px solid var(--border); border-radius: 11px; font-size: 15px; color: var(--dark); background: var(--white); outline: none; font-family: inherit; transition: border-color 0.15s; }
+  .form-group input:focus { border-color: var(--primary); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn-primary { width: 100%; padding: 14px; background: linear-gradient(135deg, var(--primary), var(--accent)); color: white; border: none; border-radius: 14px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .btn-primary:active { opacity: 0.9; }
+  .btn-ghost { width: 100%; padding: 12px; background: none; color: var(--gray); border: none; border-radius: 12px; font-size: 14px; cursor: pointer; margin-top: 6px; font-family: inherit; }
+  .btn-danger-ghost { width: 100%; padding: 12px; background: none; color: var(--danger); border: none; border-radius: 14px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 2px; font-family: inherit; }
+
+  /* TIME POPUP */
+  .time-popup-overlay { display: none; position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.4); align-items: flex-end; justify-content: center; }
+  .time-popup-overlay.open { display: flex; }
+  .time-popup { background: var(--white); border-radius: 20px 20px 0 0; width: 100%; max-width: 390px; padding: 0 0 32px; max-height: 70vh; display: flex; flex-direction: column; }
+  .time-popup-handle { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 12px auto 0; flex-shrink: 0; }
+  .time-popup-header { padding: 12px 20px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .time-popup-header h3 { font-size: 15px; font-weight: 700; color: var(--dark); }
+  .time-popup-header p  { font-size: 12px; color: var(--gray); margin-top: 2px; }
+  .time-grid { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 20px; overflow-y: auto; }
+  .time-grid::-webkit-scrollbar { display: none; }
+  .time-slot { padding: 9px 12px; border-radius: 9px; border: 1.5px solid var(--border); background: var(--white); font-size: 14px; font-weight: 500; color: var(--dark); cursor: pointer; transition: all 0.12s; white-space: nowrap; }
+  .time-slot:active { transform: scale(0.94); }
+  .time-slot.selected { background: var(--primary); border-color: var(--primary); color: white; font-weight: 700; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 86px; left: 50%; transform: translateX(-50%) translateY(8px); background: var(--dark); color: white; padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 500; opacity: 0; transition: all 0.22s; z-index: 300; white-space: nowrap; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <!-- SCREEN: CALENDAR -->
+  <div class="screen active" id="screen-calendar">
+    <div class="header">
+      <div class="header-row">
+        <div>
+          <h1>Agenda</h1>
+          <div class="header-sub" id="cal-today-label"></div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:13px; font-weight:700; color:var(--primary); letter-spacing:-0.2px;">Dra. Giovana M Soares</div>
+          <div style="font-size:11px; color:var(--gray); margin-top:2px;">Fisioterapeuta</div>
+        </div>
+      </div>
+    </div>
+    <div class="scroll-body">
+      <div class="cal-nav">
+        <button class="cal-nav-btn" onclick="changeMonth(-1)">‹</button>
+        <span class="cal-month-label" id="cal-month-label"></span>
+        <button class="cal-nav-btn" onclick="changeMonth(1)">›</button>
+      </div>
+      <div class="cal-grid-wrap">
+        <div class="cal-weekdays">
+          <div class="cal-wd">Dom</div><div class="cal-wd">Seg</div><div class="cal-wd">Ter</div>
+          <div class="cal-wd">Qua</div><div class="cal-wd">Qui</div><div class="cal-wd">Sex</div><div class="cal-wd">Sáb</div>
+        </div>
+        <div class="cal-days" id="cal-days"></div>
+      </div>
+      <div class="month-bar">
+        <div class="month-stat"><div class="ms-val" id="ms-days">0</div><div class="ms-lbl">Dias trabalhados</div></div>
+        <div class="month-stat"><div class="ms-val" id="ms-sessions">0</div><div class="ms-lbl">Atendimentos</div></div>
+      </div>
+      <button class="month-report-btn" onclick="shareMonthlyReport()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.104.549 4.076 1.504 5.798L0 24l6.357-1.479A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.865 0-3.605-.5-5.108-1.365l-.367-.217-3.777.879.942-3.68-.239-.38A9.937 9.937 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+        Relatório mensal via WhatsApp
+      </button>
+    </div>
+  </div>
+
+  <!-- SCREEN: PATIENTS -->
+  <div class="screen" id="screen-patients">
+    <div class="header">
+      <h1>Pacientes</h1>
+      <div class="header-sub" id="patients-count-label"></div>
+    </div>
+    <div class="scroll-body">
+      <div class="patients-list-wrap" id="patient-list"></div>
+    </div>
+    <button class="add-fab" onclick="openNewPatientSheet()" style="display:none">＋</button>
+  </div>
+
+  <!-- SCREEN: DETAIL -->
+  <div class="screen" id="screen-detail">
+    <div class="detail-header" id="detail-header">
+      <button class="detail-back" onclick="showScreen('patients')">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        Pacientes
+      </button>
+      <div class="detail-name" id="detail-name"></div>
+      <div class="detail-sub" id="detail-sub"></div>
+    </div>
+    <div class="pkg-tabs-wrap" id="pkg-tabs"></div>
+    <div class="scroll-body" id="detail-body"></div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" id="nav-calendar" onclick="showScreen('calendar')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Agenda
+    </button>
+    <button class="nav-item" id="nav-patients" onclick="showScreen('patients')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Pacientes
+    </button>
+  </nav>
+
+  <!-- DAY SHEET -->
+  <div class="overlay" id="day-overlay">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div><h2 id="sheet-day-title"></h2><p id="sheet-day-sub"></p></div>
+          <button onclick="openDayNotes()" id="notes-btn"
+            style="flex-shrink:0;padding:6px 12px;border-radius:10px;border:1.5px solid var(--border);background:var(--gray-light);font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;display:flex;align-items:center;gap:5px;">
+            📝 <span id="notes-btn-label">Anotação</span>
+          </button>
+        </div>
+        <div id="day-note-preview" style="display:none;margin-top:10px;padding:10px 12px;background:var(--gold-light);border-radius:10px;border:1px solid #E8C96A;font-size:13px;color:var(--dark);line-height:1.5;"></div>
+      </div>
+      <div class="sheet-body" id="sheet-body"></div>
+      <div class="sheet-footer">
+        <button class="btn-primary" onclick="saveDaySheet()">Salvar</button>
+        <button class="btn-ghost" onclick="closeOverlay('day-overlay')">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DAY NOTES SHEET -->
+  <div class="overlay" id="day-notes-overlay">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h2 id="notes-day-title"></h2>
+        <p id="notes-day-sub"></p>
+      </div>
+      <div class="sheet-body">
+        <div class="form-group">
+          <label>Anotações do dia</label>
+          <textarea id="day-notes-input" placeholder="Ex: Reunião às 14h, consulta médica, compromisso pessoal..."
+            style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:11px;font-size:15px;font-family:inherit;outline:none;resize:none;min-height:140px;color:var(--dark);transition:border-color 0.15s;"
+            onfocus="this.style.borderColor='var(--primary)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+        </div>
+      </div>
+      <div class="sheet-footer">
+        <button class="btn-primary" onclick="saveDayNote()">Salvar anotação</button>
+        <button class="btn-ghost" onclick="closeOverlay('day-notes-overlay')">Cancelar</button>
+        <button class="btn-danger-ghost" id="btn-delete-note" style="display:none" onclick="deleteDayNote()">Apagar anotação</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NEW/EDIT PATIENT SHEET -->
+  <div class="overlay" id="new-patient-overlay">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header"><h2 id="patient-form-title">Novo paciente</h2></div>
+      <div class="sheet-body">
+        <div class="form-group"><label>Nome completo</label><input type="text" id="p-name" placeholder="Ex: Carlos Silva" autocomplete="off"></div>
+        <div class="form-row">
+          <div class="form-group"><label>Total de sessões</label><input type="number" id="p-sessions-total" placeholder="Ex: 10" min="1"></div>
+          <div class="form-group"><label>Valor do pacote (R$)</label><input type="number" id="p-value" placeholder="Ex: 1500" min="0" step="0.01"></div>
+        </div>
+      </div>
+      <div class="sheet-footer">
+        <button class="btn-primary" onclick="savePatient()">Salvar paciente</button>
+        <button class="btn-ghost" onclick="closeOverlay('new-patient-overlay')">Cancelar</button>
+        <button class="btn-danger-ghost" id="btn-delete-patient" style="display:none" onclick="deletePatient()">Excluir paciente</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NEW PACKAGE SHEET -->
+  <div class="overlay" id="new-pkg-overlay">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header"><h2>Novo pacote</h2><p id="new-pkg-patient-name"></p></div>
+      <div class="sheet-body">
+        <div class="form-row">
+          <div class="form-group"><label>Total de sessões</label><input type="number" id="pkg-sessions" placeholder="Ex: 10" min="1"></div>
+          <div class="form-group"><label>Valor (R$)</label><input type="number" id="pkg-value" placeholder="Ex: 1500" min="0" step="0.01"></div>
+        </div>
+      </div>
+      <div class="sheet-footer">
+        <button class="btn-primary" onclick="saveNewPackage()">Iniciar novo pacote</button>
+        <button class="btn-ghost" onclick="closeOverlay('new-pkg-overlay')">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIME POPUP -->
+  <div class="time-popup-overlay" id="time-popup-overlay" onclick="if(event.target===this)closeTimePicker()">
+    <div class="time-popup">
+      <div class="time-popup-handle"></div>
+      <div class="time-popup-header"><h3 id="time-popup-name"></h3><p id="time-popup-sub"></p></div>
+      <div class="time-grid" id="time-grid-body"></div>
+    </div>
+  </div>
+
+  <!-- EDIT SESSION MODAL -->
+  <div class="overlay" id="edit-session-overlay">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h2 id="edit-session-title"></h2>
+        <p id="edit-session-sub"></p>
+      </div>
+      <div class="sheet-body">
+        <div class="form-group">
+          <label>Horário</label>
+          <div class="time-grid" id="edit-time-grid" style="padding:0; margin-bottom:4px;"></div>
+        </div>
+        <div class="form-group" style="margin-top:16px;">
+          <label>Observações</label>
+          <textarea id="edit-session-obs" placeholder="Ex: paciente relatou melhora, exercícios realizados..." 
+            style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:11px;font-size:15px;font-family:inherit;outline:none;resize:none;min-height:100px;color:var(--dark);transition:border-color 0.15s;"
+            onfocus="this.style.borderColor='var(--green)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+        </div>
+      </div>
+      <div class="sheet-footer">
+        <button class="btn-primary" onclick="saveSessionEdit()">Salvar</button>
+        <button class="btn-ghost" onclick="closeOverlay('edit-session-overlay')">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// DATA MODEL
+// patients: [{ id, name, packages: [{ id, sessionsTotal, packageValue, completed, completedAt }] }]
+// sessions: { "YYYY-MM-DD": [{ id: patientId, time, packageId }] }
+// nf: { "patientId_packageId_YYYY-MM": true }
+// ══════════════════════════════════════════
+function loadData() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('fisio_v4') || 'null');
+    if (raw) return raw;
+    // Migrate from v3
+    const v3 = JSON.parse(localStorage.getItem('fisio_v3') || 'null');
+    if (v3) return migrateV3(v3);
+    return { patients: [], sessions: {}, nf: {} };
+  } catch(e) { return { patients: [], sessions: {}, nf: {} }; }
+}
+
+function migrateV3(v3) {
+  const db = { patients: [], sessions: {}, nf: {} };
+  (v3.patients || []).forEach(p => {
+    const pkgId = 'pkg_' + p.id;
+    db.patients.push({
+      id: p.id, name: p.name,
+      packages: [{ id: pkgId, sessionsTotal: p.sessionsTotal || 0, packageValue: p.packageValue || 0, completed: false }]
+    });
+  });
+  Object.keys(v3.sessions || {}).forEach(date => {
+    db.sessions[date] = v3.sessions[date].map(entry => {
+      const e = typeof entry === 'string' ? { id: entry, time: '' } : entry;
+      const p = db.patients.find(x => x.id === e.id);
+      return { id: e.id, time: e.time || '', packageId: p ? p.packages[0].id : '' };
+    });
+  });
+  Object.keys(v3.nf || {}).forEach(key => {
+    // key was "patientId_YYYY-MM" → new key "patientId_pkgId_YYYY-MM"
+    const [pid, ...rest] = key.split('_');
+    const p = db.patients.find(x => x.id === pid);
+    if (p) db.nf[`${pid}_${p.packages[0].id}_${rest.join('_')}`] = v3.nf[key];
+  });
+  return db;
+}
+
+function saveData() { localStorage.setItem('fisio_v4', JSON.stringify(db)); }
+let db = loadData();
+
+const MONTHS       = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const MONTHS_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const WEEKDAYS     = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+
+let currentYear, currentMonth;
+let sheetDate = null;
+let sheetChecked = new Map(); // patientId -> { time, packageId }
+let currentDetailId = null;
+let currentPkgId = null;
+let editingPatientId = null;
+let activePickerPatientId = null;
+
+// ── HELPERS ──────────────────────────────
+function dateKey(y, m, d) { return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+function todayKey() { const n = new Date(); return dateKey(n.getFullYear(), n.getMonth()+1, n.getDate()); }
+function getInitials(name) { return name.trim().split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase(); }
+function getActivePackage(p) { return p.packages.find(pk => !pk.completed) || p.packages[p.packages.length-1]; }
+
+function sessionsForPackage(patientId, pkgId) {
+  return Object.keys(db.sessions).filter(k => db.sessions[k].some(e => e.id === patientId && e.packageId === pkgId));
+}
+function doneSessionsForPackage(patientId, pkgId) {
+  const today = todayKey();
+  return sessionsForPackage(patientId, pkgId).filter(k => k <= today);
+}
+function sessionTimeForPatient(date, patientId) {
+  const entry = (db.sessions[date] || []).find(e => e.id === patientId);
+  return entry ? entry.time || '' : '';
+}
+
+// Returns calendar class for a date
+function dayStatus(date) {
+  const entries = db.sessions[date] || [];
+  if (!entries.length) return null;
+  const today = todayKey();
+  // Check if all belong to completed packages
+  const allPkgDone = entries.every(e => {
+    const p = db.patients.find(x => x.id === e.id);
+    const pkg = p?.packages.find(pk => pk.id === e.packageId);
+    return pkg && pkg.completed;
+  });
+  if (allPkgDone) return 'pkg-done';
+  const isPast   = date <= today;
+  const isFuture = date > today;
+  // Mixed days (today counts as past/done)
+  if (isPast) return 'past';
+  return 'future';
+}
+
+// Auto-complete check: sessions done >= total AND all NFs for that package emitted
+function checkAutoComplete(patientId, pkgId) {
+  const p = db.patients.find(x => x.id === patientId);
+  if (!p) return;
+  const pkg = p.packages.find(pk => pk.id === pkgId);
+  if (!pkg || pkg.completed) return;
+  const done = doneSessionsForPackage(patientId, pkgId).length;
+  if (done < pkg.sessionsTotal) return;
+  // Check all months have NF issued
+  const allSessions = sessionsForPackage(patientId, pkgId);
+  const months = [...new Set(allSessions.map(d => d.substring(0,7)))];
+  const allNF = months.every(m => db.nf[`${patientId}_${pkgId}_${m}`]);
+  if (allNF) {
+    pkg.completed = true;
+    pkg.completedAt = new Date().toISOString();
+    saveData();
+    toast('Pacote concluído! 🎉');
+    openDetail(patientId, pkgId);
+  }
+}
+
+// ── NAVIGATION ───────────────────────────
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const fab = document.querySelector('.add-fab');
+  if (name === 'calendar') {
+    document.getElementById('screen-calendar').classList.add('active');
+    document.getElementById('nav-calendar').classList.add('active');
+    fab.style.display = 'none';
+    renderCalendar(); updateCalendarSummary();
+  } else if (name === 'patients') {
+    document.getElementById('screen-patients').classList.add('active');
+    document.getElementById('nav-patients').classList.add('active');
+    fab.style.display = 'flex';
+    renderPatientList();
+  } else if (name === 'detail') {
+    document.getElementById('screen-detail').classList.add('active');
+    fab.style.display = 'none';
+  }
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+function openOverlay(id)  { document.getElementById(id).classList.add('open'); }
+function closeOverlay(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); }));
+
+// ── CALENDAR ─────────────────────────────
+function initCalendar() {
+  const now = new Date();
+  currentYear = now.getFullYear(); currentMonth = now.getMonth();
+  document.getElementById('cal-today-label').textContent = `Hoje, ${now.getDate()} de ${MONTHS[now.getMonth()].toLowerCase()}`;
+  renderCalendar(); updateCalendarSummary();
+}
+function changeMonth(dir) {
+  currentMonth += dir;
+  if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+  if (currentMonth < 0)  { currentMonth = 11; currentYear--; }
+  renderCalendar(); updateCalendarSummary();
+}
+function renderCalendar() {
+  document.getElementById('cal-month-label').textContent = `${MONTHS[currentMonth]} ${currentYear}`;
+  const today = new Date();
+  const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+  const daysCount = new Date(currentYear, currentMonth+1, 0).getDate();
+  let html = '';
+  for (let i = 0; i < firstDay; i++) html += '<div class="cal-day empty"></div>';
+  for (let d = 1; d <= daysCount; d++) {
+    const ds = dateKey(currentYear, currentMonth+1, d);
+    const isToday = today.getFullYear()===currentYear && today.getMonth()===currentMonth && today.getDate()===d;
+    const status = dayStatus(ds);
+    const statusCls = status ? 'has-'+status : '';
+    const cls = [isToday?'today':'', statusCls].filter(Boolean).join(' ');
+    const hasNote = !!(db.notes && db.notes[ds]);
+    const noteCls = hasNote ? 'has-note' : '';
+    html += `<div class="cal-day ${cls} ${noteCls}" onclick="openDaySheet('${ds}')"><div class="day-num">${d}</div><div class="day-dot"></div><div class="note-dot"></div></div>`;
+  }
+  document.getElementById('cal-days').innerHTML = html;
+}
+function updateCalendarSummary() {
+  const prefix = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`;
+  const daysWorked = Object.keys(db.sessions).filter(k => k.startsWith(prefix) && db.sessions[k].length > 0);
+  const totalSessions = daysWorked.reduce((a,k) => a + db.sessions[k].length, 0);
+  document.getElementById('ms-days').textContent     = daysWorked.length;
+  document.getElementById('ms-sessions').textContent = totalSessions;
+}
+
+// ── DAY SHEET ────────────────────────────
+function openDaySheet(dateStr) {
+  if (db.patients.length === 0) { toast('Cadastre pacientes primeiro'); return; }
+  sheetDate = dateStr;
+  const [y,m,d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  document.getElementById('sheet-day-title').textContent = `${d} de ${MONTHS[m-1]}`;
+  document.getElementById('sheet-day-sub').textContent   = `${WEEKDAYS[dt.getDay()]} · ${y}`;
+  sheetChecked = new Map();
+  (db.sessions[dateStr] || []).forEach(e => sheetChecked.set(e.id, { time: e.time||'', packageId: e.packageId }));
+  renderSheetBody();
+  renderNotePreview();
+  openOverlay('day-overlay');
+}
+
+function renderNotePreview() {
+  if (!sheetDate) return;
+  const note = db.notes && db.notes[sheetDate];
+  const preview = document.getElementById('day-note-preview');
+  const btn = document.getElementById('notes-btn-label');
+  if (note) {
+    preview.style.display = 'block';
+    preview.textContent = note;
+    btn.textContent = 'Editar';
+    document.getElementById('notes-btn').style.background = 'var(--gold-light)';
+    document.getElementById('notes-btn').style.borderColor = '#E8C96A';
+    document.getElementById('notes-btn').style.color = '#B8882A';
+  } else {
+    preview.style.display = 'none';
+    btn.textContent = 'Anotação';
+    document.getElementById('notes-btn').style.background = 'var(--gray-light)';
+    document.getElementById('notes-btn').style.borderColor = 'var(--border)';
+    document.getElementById('notes-btn').style.color = 'var(--gray)';
+  }
+}
+function renderSheetBody() {
+  document.getElementById('sheet-body').innerHTML = db.patients.map(p => {
+    const checked = sheetChecked.has(p.id);
+    const data = sheetChecked.get(p.id) || {};
+    const time = data.time || '';
+    const timeBtnClass = time ? 'time-btn has-time' : 'time-btn';
+    return `<div class="patient-check-item">
+      <div class="pci-check-wrap" onclick="toggleCheck('${p.id}')">
+        <div class="pci-check ${checked?'checked':''}" id="chk-${p.id}">${checked?'✓':''}</div>
+        <span class="pci-name">${p.name}</span>
+      </div>
+      ${checked ? `<button class="${timeBtnClass}" id="time-btn-${p.id}" onclick="openTimePicker('${p.id}')">${time||'Horário'}</button>` : ''}
+    </div>`;
+  }).join('');
+}
+function toggleCheck(id) {
+  if (sheetChecked.has(id)) {
+    sheetChecked.delete(id);
+  } else {
+    const p = db.patients.find(x => x.id === id);
+    const pkg = p ? getActivePackage(p) : null;
+    sheetChecked.set(id, { time: '', packageId: pkg ? pkg.id : '' });
+  }
+  renderSheetBody();
+}
+function saveDaySheet() {
+  if (sheetChecked.size === 0) delete db.sessions[sheetDate];
+  else db.sessions[sheetDate] = [...sheetChecked.entries()].map(([id, data]) => ({ id, time: data.time, packageId: data.packageId }));
+  saveData(); closeOverlay('day-overlay');
+  renderCalendar(); updateCalendarSummary();
+  // Check alerts and auto-complete for each patient saved
+  let alertMsg = '';
+  sheetChecked.forEach((data, id) => {
+    checkAutoComplete(id, data.packageId);
+    const p = db.patients.find(x => x.id === id);
+    if (!p) return;
+    const pkg = p.packages.find(pk => pk.id === data.packageId);
+    if (!pkg || pkg.completed) return;
+    const done = doneSessionsForPackage(id, data.packageId).length;
+    const total = pkg.sessionsTotal || 0;
+    if (total === 0) return;
+    if (done === total) {
+      alertMsg = `🎉 Último atendimento de ${p.name} concluído!`;
+    } else if (done === total - 1 && !alertMsg) {
+      alertMsg = `⚠️ Penúltimo atendimento de ${p.name}!`;
+    }
+  });
+  if (alertMsg) {
+    setTimeout(() => toast(alertMsg), 400);
+  } else {
+    toast('Atendimentos salvos ✓');
+  }
+}
+
+// ── TIME PICKER ──────────────────────────
+function openTimePicker(patientId) {
+  activePickerPatientId = patientId;
+  const p = db.patients.find(x => x.id === patientId);
+  const selectedTime = (sheetChecked.get(patientId) || {}).time || '';
+  const slots = [];
+  for (let h = 7; h <= 20; h++) {
+    for (let m = 0; m < 60; m += 30) {
+      if (h === 20 && m > 0) break;
+      const t = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+      slots.push(`<div class="time-slot ${t===selectedTime?'selected':''}" onclick="selectTime('${t}')">${t}</div>`);
+    }
+  }
+  document.getElementById('time-popup-name').textContent = p ? p.name : '';
+  document.getElementById('time-popup-sub').textContent  = selectedTime ? `Selecionado: ${selectedTime}` : 'Toque para selecionar';
+  document.getElementById('time-grid-body').innerHTML = slots.join('');
+  document.getElementById('time-popup-overlay').classList.add('open');
+}
+function selectTime(time) {
+  if (!activePickerPatientId) return;
+  const data = sheetChecked.get(activePickerPatientId) || {};
+  data.time = time;
+  sheetChecked.set(activePickerPatientId, data);
+  document.getElementById('time-popup-overlay').classList.remove('open');
+  activePickerPatientId = null;
+  renderSheetBody();
+}
+function closeTimePicker() {
+  document.getElementById('time-popup-overlay').classList.remove('open');
+  activePickerPatientId = null;
+}
+
+// ── PATIENTS LIST ────────────────────────
+function renderPatientList() {
+  const total = db.patients.length;
+  document.getElementById('patients-count-label').textContent =
+    total === 0 ? 'Nenhum cadastrado' : `${total} ${total===1?'paciente':'pacientes'}`;
+  const el = document.getElementById('patient-list');
+  if (total === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="es-icon">🧘</div><p>Nenhum paciente cadastrado.<br>Toque em <strong>+</strong> para começar.</p></div>`;
+    return;
+  }
+  el.innerHTML = db.patients.map(p => {
+    const activePkg  = getActivePackage(p);
+    const isCompleted = activePkg.completed;
+    const done        = doneSessionsForPackage(p.id, activePkg.id).length;
+    const allSessions = sessionsForPackage(p.id, activePkg.id).length;
+    const total       = activePkg.sessionsTotal || 0;
+    const pct         = total > 0 ? Math.min(done / total, 1) : 0;
+    const remaining   = Math.max(total - allSessions, 0);
+    const completedCount = p.packages.filter(pk => pk.completed).length;
+
+    return `<div class="patient-card ${isCompleted?'completed':''}" onclick="openDetail('${p.id}', '${activePkg.id}')">
+      <div class="patient-avatar ${isCompleted?'done-avatar':''}">${getInitials(p.name)}</div>
+      <div class="patient-card-info">
+        <div class="patient-card-name">${p.name}</div>
+        <div class="patient-card-meta">
+          ${isCompleted
+            ? `${completedCount} ${completedCount===1?'pacote':'pacotes'} concluídos`
+            : `Pacote ${p.packages.length} · ${done}/${total} sessões · ${remaining} restantes`}
+        </div>
+      </div>
+      <div class="patient-card-right">
+        ${isCompleted
+          ? `<span class="completed-badge">Concluído ✓</span>`
+          : `<span class="prog-label">${Math.round(pct*100)}%</span>
+             <div class="prog-bar-mini"><div class="prog-bar-mini-fill" style="width:${pct*100}%"></div></div>`}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── NEW/EDIT PATIENT ─────────────────────
+function openNewPatientSheet() {
+  editingPatientId = null;
+  document.getElementById('patient-form-title').textContent = 'Novo paciente';
+  document.getElementById('p-name').value = '';
+  document.getElementById('p-sessions-total').value = '';
+  document.getElementById('p-value').value = '';
+  document.getElementById('btn-delete-patient').style.display = 'none';
+  openOverlay('new-patient-overlay');
+  setTimeout(() => document.getElementById('p-name').focus(), 300);
+}
+function openEditPatientSheet(id) {
+  const p = db.patients.find(x => x.id === id);
+  if (!p) return;
+  const pkg = getActivePackage(p);
+  editingPatientId = id;
+  document.getElementById('patient-form-title').textContent = 'Editar paciente';
+  document.getElementById('p-name').value = p.name;
+  document.getElementById('p-sessions-total').value = pkg.sessionsTotal || '';
+  document.getElementById('p-value').value = pkg.packageValue || '';
+  document.getElementById('btn-delete-patient').style.display = 'block';
+  openOverlay('new-patient-overlay');
+}
+function savePatient() {
+  const name = document.getElementById('p-name').value.trim();
+  if (!name) { toast('Informe o nome do paciente'); return; }
+  const sessionsTotal = parseInt(document.getElementById('p-sessions-total').value) || 0;
+  const packageValue  = parseFloat(document.getElementById('p-value').value) || 0;
+  if (editingPatientId) {
+    const p = db.patients.find(x => x.id === editingPatientId);
+    p.name = name;
+    const pkg = getActivePackage(p);
+    pkg.sessionsTotal = sessionsTotal; pkg.packageValue = packageValue;
+    toast('Paciente atualizado ✓');
+  } else {
+    const id = Date.now().toString();
+    db.patients.push({ id, name, packages: [{ id: 'pkg_'+id, sessionsTotal, packageValue, completed: false }] });
+    toast('Paciente cadastrado ✓');
+  }
+  saveData(); closeOverlay('new-patient-overlay');
+  if (editingPatientId) openDetail(editingPatientId, currentPkgId);
+  else renderPatientList();
+}
+function deletePatient() {
+  const p = db.patients.find(x => x.id === editingPatientId);
+  if (!confirm(`Excluir ${p?.name}? Todos os atendimentos também serão removidos.`)) return;
+  Object.keys(db.sessions).forEach(k => {
+    db.sessions[k] = db.sessions[k].filter(e => e.id !== editingPatientId);
+    if (!db.sessions[k].length) delete db.sessions[k];
+  });
+  db.patients = db.patients.filter(x => x.id !== editingPatientId);
+  saveData(); closeOverlay('new-patient-overlay');
+  showScreen('patients'); toast('Paciente excluído');
+}
+
+// ── NEW PACKAGE ───────────────────────────
+function openNewPackageSheet(patientId) {
+  const p = db.patients.find(x => x.id === patientId);
+  if (!p) return;
+  document.getElementById('new-pkg-patient-name').textContent = p.name;
+  document.getElementById('pkg-sessions').value = '';
+  document.getElementById('pkg-value').value = '';
+  openOverlay('new-pkg-overlay');
+}
+function saveNewPackage() {
+  const sessionsTotal = parseInt(document.getElementById('pkg-sessions').value) || 0;
+  const packageValue  = parseFloat(document.getElementById('pkg-value').value) || 0;
+  if (!sessionsTotal) { toast('Informe o total de sessões'); return; }
+  const p = db.patients.find(x => x.id === currentDetailId);
+  if (!p) return;
+  const newPkg = { id: 'pkg_' + Date.now(), sessionsTotal, packageValue, completed: false };
+  p.packages.push(newPkg);
+  saveData(); closeOverlay('new-pkg-overlay');
+  openDetail(currentDetailId, newPkg.id);
+  toast('Novo pacote iniciado ✓');
+}
+
+// ── DETAIL ───────────────────────────────
+function openDetail(patientId, pkgId) {
+  currentDetailId = patientId;
+  const p = db.patients.find(x => x.id === patientId);
+  if (!p) return;
+  const pkg = p.packages.find(pk => pk.id === pkgId) || getActivePackage(p);
+  currentPkgId = pkg.id;
+
+  document.getElementById('detail-name').textContent = p.name;
+  const completedCount = p.packages.filter(pk => pk.completed).length;
+  document.getElementById('detail-sub').textContent  = `${completedCount} ${completedCount===1?'pacote':'pacotes'} concluído${completedCount!==1?'s':''}`;
+  const hdr = document.getElementById('detail-header');
+  hdr.className = 'detail-header' + (pkg.completed ? ' done-header' : '');
+
+  // Package tabs
+  let tabsHtml = p.packages.map((pk, i) => {
+    const label = `Pacote ${i+1}${pk.completed ? ' ✓' : ''}`;
+    const isDone = pk.completed;
+    const isActive = pk.id === currentPkgId;
+    return `<div class="pkg-tab ${isActive?'active':''} ${isDone?'done-tab':''}" onclick="openDetail('${patientId}','${pk.id}')">${label}</div>`;
+  }).join('');
+  if (!p.packages[p.packages.length-1].completed === false || p.packages[p.packages.length-1].completed) {
+    // Show "new package" button only if current (last) package is completed
+    if (p.packages[p.packages.length-1].completed) {
+      tabsHtml += `<button class="new-pkg-btn" onclick="openNewPackageSheet('${patientId}')">+ Novo pacote</button>`;
+    }
+  }
+  document.getElementById('pkg-tabs').innerHTML = tabsHtml;
+
+  renderDetailBody(p, pkg);
+  showScreen('detail');
+}
+
+function renderDetailBody(p, pkg) {
+  const sessions    = sessionsForPackage(p.id, pkg.id).sort((a,b) => b.localeCompare(a));
+  const done        = doneSessionsForPackage(p.id, pkg.id).length;
+  const allSessions = sessions.length;
+  const total       = pkg.sessionsTotal || 0;
+  const remaining   = Math.max(total - allSessions, 0);
+  const pct         = total > 0 ? Math.min(done / total, 1) : 0;
+  const isDone      = pkg.completed;
+
+  const byMonth = {};
+  sessions.forEach(date => {
+    const key = date.substring(0,7);
+    if (!byMonth[key]) byMonth[key] = [];
+    byMonth[key].push(date);
+  });
+
+  const r = 34, circ = 2 * Math.PI * r, offset = circ - pct * circ;
+  let html = '';
+
+  // Completed banner
+  if (isDone) {
+    html += `<div class="completed-banner">
+      <div class="cb-icon">🏆</div>
+      <div><div class="cb-title">Pacote concluído ✓</div><div class="cb-sub">Todas as sessões realizadas e notas emitidas</div></div>
+    </div>`;
+  }
+
+  // Progress ring
+  html += `<div class="detail-progress-wrap">
+    <div class="progress-ring-wrap">
+      <svg width="80" height="80" viewBox="0 0 80 80">
+        <circle class="ring-bg ${isDone?'done-ring':''}" cx="40" cy="40" r="${r}"/>
+        <circle class="ring-fill ${isDone?'done-ring-fill':''}" cx="40" cy="40" r="${r}" stroke-dasharray="${circ}" stroke-dashoffset="${offset}"/>
+      </svg>
+      <div class="ring-text"><div class="rt-num">${Math.round(pct*100)}%</div><div class="rt-lbl">concluído</div></div>
+    </div>
+    <div class="progress-info">
+      <div class="pi-row"><span class="pi-label">Total do pacote</span><span class="pi-val">${total} sessões</span></div>
+      <div class="pi-row"><span class="pi-label">Realizadas</span><span class="pi-val done-val">${done}</span></div>
+      <div class="pi-row"><span class="pi-label">Restantes</span><span class="pi-val remaining-val">${remaining}</span></div>
+      ${pkg.packageValue ? `<div class="pi-row"><span class="pi-label">Valor</span><span class="pi-val">R$ ${pkg.packageValue.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span></div>` : ''}
+    </div>
+  </div>`;
+
+  // Alert banner
+  if (!isDone) {
+    const remaining = Math.max((pkg.sessionsTotal || 0) - sessionsForPackage(p.id, pkg.id).length, 0);
+    const doneSessions = doneSessionsForPackage(p.id, pkg.id).length;
+    const total = pkg.sessionsTotal || 0;
+    if (total > 0 && doneSessions === total - 1) {
+      html += `<div class="alert-banner warning">
+        <div class="ab-icon">⚠️</div>
+        <div><div class="ab-title">Penúltimo atendimento!</div><div class="ab-sub">Falta apenas 1 sessão para concluir o pacote.</div></div>
+      </div>`;
+    } else if (total > 0 && doneSessions >= total) {
+      html += `<div class="alert-banner danger">
+        <div class="ab-icon">🔔</div>
+        <div><div class="ab-title">Pacote encerrado!</div><div class="ab-sub">Todas as sessões foram realizadas. Emita a NF e inicie um novo pacote.</div></div>
+      </div>`;
+    }
+  }
+
+  html += `<button class="edit-patient-btn" onclick="openEditPatientSheet('${p.id}')">✏️ Editar paciente</button>`;
+  html += `<button class="share-btn" onclick="shareReport('${p.id}','${pkg.id}')">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.104.549 4.076 1.504 5.798L0 24l6.357-1.479A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.865 0-3.605-.5-5.108-1.365l-.367-.217-3.777.879.942-3.68-.239-.38A9.937 9.937 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+    Enviar relatório via WhatsApp
+  </button>`;
+
+  if (!sessions.length) {
+    html += `<div class="empty-state"><div class="es-icon">📋</div><p>Nenhum atendimento neste pacote.<br>Marque os atendimentos na <strong>Agenda</strong>.</p></div>`;
+  } else {
+    html += `<div class="section-card"><div class="section-title">Atendimentos & Notas Fiscais</div>`;
+    Object.keys(byMonth).sort((a,b) => b.localeCompare(a)).forEach(monthKey => {
+      const [y, m] = monthKey.split('-');
+      const nfKey    = `${p.id}_${pkg.id}_${monthKey}`;
+      const nfIssued = !!db.nf[nfKey];
+      const count    = byMonth[monthKey].length;
+      html += `<div class="nf-row">
+        <div><div class="nf-month-label">${MONTHS[parseInt(m)-1]} ${y}</div><div class="nf-count">${count} ${count===1?'atendimento':'atendimentos'}</div></div>
+        <button class="nf-badge ${nfIssued?'issued':'pending'}" onclick="toggleNF('${p.id}','${pkg.id}','${monthKey}')">${nfIssued?'✓ NF emitida':'NF pendente'}</button>
+      </div>`;
+      byMonth[monthKey].forEach(date => {
+        const [,dm,dd] = date.split('-');
+        const time = sessionTimeForPatient(date, p.id);
+        const boxCls = isDone ? 'session-date-box done-box' : 'session-date-box';
+        const dayCls = isDone ? 'sd-day done-day' : 'sd-day';
+        const monCls = isDone ? 'sd-month done-month' : 'sd-month';
+        const obs = sessionObsForPatient(date, p.id);
+        html += `<div class="session-item" onclick="openSessionEdit('${p.id}','${pkg.id}','${date}')" style="cursor:pointer;">
+          <div class="${boxCls}"><div class="${dayCls}">${parseInt(dd)}</div><div class="${monCls}">${MONTHS_SHORT[parseInt(dm)-1]}</div></div>
+          <div style="flex:1;min-width:0;">
+            <div class="session-label">${time ? '🕐 '+time : 'Atendimento'}</div>
+            ${obs ? `<div style="font-size:11px;color:var(--gray);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${obs}</div>` : ''}
+          </div>
+          <button class="session-del" onclick="event.stopPropagation();removeSession('${p.id}','${pkg.id}','${date}')">✕</button>
+        </div>`;
+      });
+    });
+    html += `</div>`;
+  }
+
+  document.getElementById('detail-body').innerHTML = html;
+}
+
+function toggleNF(patientId, pkgId, monthKey) {
+  const key = `${patientId}_${pkgId}_${monthKey}`;
+  db.nf[key] = !db.nf[key];
+  saveData();
+  toast(db.nf[key] ? 'NF marcada como emitida ✓' : 'NF marcada como pendente');
+  checkAutoComplete(patientId, pkgId);
+}
+
+function removeSession(patientId, pkgId, date) {
+  if (!db.sessions[date]) return;
+  db.sessions[date] = db.sessions[date].filter(e => !(e.id === patientId && e.packageId === pkgId));
+  if (!db.sessions[date].length) delete db.sessions[date];
+  saveData();
+  const p = db.patients.find(x => x.id === patientId);
+  const pkg = p?.packages.find(pk => pk.id === pkgId);
+  if (p && pkg) renderDetailBody(p, pkg);
+  renderCalendar(); toast('Atendimento removido');
+}
+
+// ── DAY NOTES ────────────────────────────
+function openDayNotes() {
+  if (!sheetDate) return;
+  const [y, m, d] = sheetDate.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  document.getElementById('notes-day-title').textContent = `${d} de ${MONTHS[m-1]}`;
+  document.getElementById('notes-day-sub').textContent   = WEEKDAYS[dt.getDay()];
+  const existing = db.notes && db.notes[sheetDate] || '';
+  document.getElementById('day-notes-input').value = existing;
+  document.getElementById('btn-delete-note').style.display = existing ? 'block' : 'none';
+  openOverlay('day-notes-overlay');
+}
+
+function saveDayNote() {
+  if (!sheetDate) return;
+  if (!db.notes) db.notes = {};
+  const val = document.getElementById('day-notes-input').value.trim();
+  if (val) db.notes[sheetDate] = val;
+  else delete db.notes[sheetDate];
+  saveData();
+  closeOverlay('day-notes-overlay');
+  renderNotePreview();
+  renderCalendar();
+  updateCalendarSummary();
+  toast('Anotação salva ✓');
+}
+
+function deleteDayNote() {
+  if (!sheetDate || !db.notes) return;
+  delete db.notes[sheetDate];
+  saveData();
+  closeOverlay('day-notes-overlay');
+  renderNotePreview();
+  renderCalendar();
+  toast('Anotação apagada');
+}
+
+// ── SESSION OBS HELPER ───────────────────
+function sessionObsForPatient(date, patientId) {
+  const entry = (db.sessions[date] || []).find(e => e.id === patientId);
+  return entry ? entry.obs || '' : '';
+}
+
+// ── EDIT SESSION ──────────────────────────
+let editSessionData = null; // { patientId, pkgId, date }
+let editSelectedTime = '';
+
+function openSessionEdit(patientId, pkgId, date) {
+  const p = db.patients.find(x => x.id === patientId);
+  if (!p) return;
+  editSessionData = { patientId, pkgId, date };
+
+  const [y, m, d] = date.split('-');
+  const dt = new Date(parseInt(y), parseInt(m)-1, parseInt(d));
+  document.getElementById('edit-session-title').textContent = `${parseInt(d)} de ${MONTHS[parseInt(m)-1]}`;
+  document.getElementById('edit-session-sub').textContent   = `${p.name} · ${WEEKDAYS[dt.getDay()]}`;
+
+  const entry = (db.sessions[date] || []).find(e => e.id === patientId);
+  editSelectedTime = entry?.time || '';
+  document.getElementById('edit-session-obs').value = entry?.obs || '';
+
+  renderEditTimeGrid();
+  openOverlay('edit-session-overlay');
+}
+
+function renderEditTimeGrid() {
+  const slots = [];
+  for (let h = 7; h <= 20; h++) {
+    for (let m = 0; m < 60; m += 30) {
+      if (h === 20 && m > 0) break;
+      const t = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+      slots.push(`<div class="time-slot ${t === editSelectedTime ? 'selected' : ''}" onclick="toggleEditTime('${t}')">${t}</div>`);
+    }
+  }
+  document.getElementById('edit-time-grid').innerHTML = slots.join('');
+}
+
+function toggleEditTime(time) {
+  editSelectedTime = editSelectedTime === time ? '' : time;
+  renderEditTimeGrid();
+}
+
+function saveSessionEdit() {
+  if (!editSessionData) return;
+  const { patientId, pkgId, date } = editSessionData;
+  const entry = (db.sessions[date] || []).find(e => e.id === patientId && e.packageId === pkgId);
+  if (entry) {
+    entry.time = editSelectedTime;
+    entry.obs  = document.getElementById('edit-session-obs').value.trim();
+    saveData();
+  }
+  closeOverlay('edit-session-overlay');
+  const p   = db.patients.find(x => x.id === patientId);
+  const pkg = p?.packages.find(pk => pk.id === pkgId);
+  if (p && pkg) renderDetailBody(p, pkg);
+  toast('Atendimento atualizado ✓');
+}
+
+// ── SHARE ────────────────────────────────
+function shareReport(patientId, pkgId) {
+  const p = db.patients.find(x => x.id === patientId);
+  if (!p) return;
+  const pkg = p.packages.find(pk => pk.id === pkgId);
+  if (!pkg) return;
+  const sessions = sessionsForPackage(patientId, pkgId).sort((a,b) => b.localeCompare(a));
+  if (!sessions.length) { toast('Nenhum atendimento para compartilhar'); return; }
+  const byMonth = {};
+  sessions.forEach(d => { const k=d.substring(0,7); if(!byMonth[k]) byMonth[k]=[]; byMonth[k].push(d); });
+  const done = doneSessionsForPackage(patientId, pkgId).length;
+  const pkgIndex = p.packages.indexOf(pkg) + 1;
+  let msg = `📋 *Relatório — Pacote ${pkgIndex}*\n👤 *${p.name}*\n`;
+  if (pkg.packageValue) msg += `💰 Pacote: R$ ${pkg.packageValue.toLocaleString('pt-BR',{minimumFractionDigits:2})}\n`;
+  msg += `📊 ${done}/${pkg.sessionsTotal} sessões realizadas\n${pkg.completed ? '🏆 Pacote concluído ✓' : ''}\n\n`;
+  Object.keys(byMonth).sort((a,b)=>b.localeCompare(a)).forEach(mk => {
+    const [y,m] = mk.split('-');
+    const nfKey = `${patientId}_${pkgId}_${mk}`;
+    msg += `📅 *${MONTHS[parseInt(m)-1]} ${y}*\n`;
+    byMonth[mk].forEach(date => {
+      const [,dm,dd] = date.split('-');
+      const time = sessionTimeForPatient(date, patientId);
+      const obs  = sessionObsForPatient(date, patientId);
+      msg += `  • ${parseInt(dd)}/${dm}/${y}${time?' às '+time:''}${obs?' — '+obs:''}\n`;
+    });
+    msg += `  📝 NF: ${db.nf[nfKey]?'Emitida ✓':'Pendente'}\n\n`;
+  });
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg.trim())}`, '_blank');
+}
+
+// ── MONTHLY REPORT ───────────────────────
+function shareMonthlyReport() {
+  const prefix = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`;
+  const monthName = `${MONTHS[currentMonth]} ${currentYear}`;
+
+  // All sessions this month
+  const monthDates = Object.keys(db.sessions).filter(k => k.startsWith(prefix));
+  const totalSessions = monthDates.reduce((a, k) => a + db.sessions[k].length, 0);
+
+  if (totalSessions === 0) { toast('Nenhum atendimento em ' + MONTHS[currentMonth]); return; }
+
+  // Per patient stats
+  const patientStats = {};
+  monthDates.forEach(date => {
+    db.sessions[date].forEach(entry => {
+      if (!patientStats[entry.id]) patientStats[entry.id] = { dates: [], packageId: entry.packageId };
+      patientStats[entry.id].dates.push(date);
+    });
+  });
+
+  // NF count this month
+  let nfCount = 0;
+  let nfTotal = 0;
+  Object.keys(patientStats).forEach(pid => {
+    const pkgId = patientStats[pid].packageId;
+    const nfKey = `${pid}_${pkgId}_${prefix}`;
+    nfTotal++;
+    if (db.nf[nfKey]) nfCount++;
+  });
+
+  // Build message
+  let msg = `📊 *Relatório Mensal — ${monthName}*\n`;
+  msg += `👩‍⚕️ Dra. Giovana M Soares\n\n`;
+  msg += `📅 *Resumo geral*\n`;
+  msg += `  • Dias trabalhados: ${monthDates.length}\n`;
+  msg += `  • Total de atendimentos: ${totalSessions}\n`;
+  msg += `  • Notas fiscais emitidas: ${nfCount}/${nfTotal}\n\n`;
+
+  // Value summary
+  let totalReceivable = 0;
+  const patientLines = [];
+  Object.keys(patientStats).forEach(pid => {
+    const p = db.patients.find(x => x.id === pid);
+    if (!p) return;
+    const pkgId = patientStats[pid].packageId;
+    const pkg   = p.packages.find(pk => pk.id === pkgId);
+    if (!pkg) return;
+    const doneTotal = doneSessionsForPackage(pid, pkgId).length;
+    const allTotal  = sessionsForPackage(pid, pkgId).length;
+    const remaining = Math.max((pkg.sessionsTotal || 0) - allTotal, 0);
+    const nfKey     = `${pid}_${pkgId}_${prefix}`;
+    const nfIssued  = !!db.nf[nfKey];
+    const monthCount = patientStats[pid].dates.length;
+
+    // Estimate value per session
+    const valuePerSession = pkg.sessionsTotal > 0 && pkg.packageValue > 0
+      ? pkg.packageValue / pkg.sessionsTotal : 0;
+    const monthValue = valuePerSession * monthCount;
+    totalReceivable += monthValue;
+
+    let line = `👤 *${p.name}*\n`;
+    line += `  • ${monthCount} atendimento${monthCount !== 1 ? 's' : ''} este mês\n`;
+    line += `  • Progresso: ${doneTotal}/${pkg.sessionsTotal || '?'} sessões`;
+    if (remaining > 0) line += ` · faltam ${remaining}`;
+    else if (pkg.completed) line += ` · pacote concluído ✓`;
+    line += `\n`;
+    if (valuePerSession > 0) line += `  • Valor mês: R$ ${monthValue.toLocaleString('pt-BR', {minimumFractionDigits:2})}\n`;
+    line += `  • NF: ${nfIssued ? 'Emitida ✓' : 'Pendente ⚠️'}\n`;
+    patientLines.push(line);
+  });
+
+  msg += `👥 *Por paciente*\n\n`;
+  msg += patientLines.join('\n');
+
+  if (totalReceivable > 0) {
+    msg += `\n💰 *Total estimado do mês: R$ ${totalReceivable.toLocaleString('pt-BR', {minimumFractionDigits:2})}*\n`;
+  }
+
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg.trim())}`, '_blank');
+}
+
+// ── INIT ────────────────────────────────
+initCalendar();
+</script>
+</body>
+</html>
