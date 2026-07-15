@@ -448,53 +448,59 @@
   </div>
 
   <div class="toast" id="toast"></div>
+
+  <!-- LOADING SCREEN -->
+  <div id="loading-screen" style="display:none;position:fixed;inset:0;background:var(--gray-light);z-index:500;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
+    <div style="font-size:40px;">🌸</div>
+    <div style="font-size:15px;font-weight:600;color:var(--primary);">Carregando agenda...</div>
+    <div style="font-size:12px;color:var(--gray);">Dra. Giovana M Soares</div>
+  </div>
 </div>
 
-<script>
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
 // ══════════════════════════════════════════
-// DATA MODEL
-// patients: [{ id, name, packages: [{ id, sessionsTotal, packageValue, completed, completedAt }] }]
-// sessions: { "YYYY-MM-DD": [{ id: patientId, time, packageId }] }
-// nf: { "patientId_packageId_YYYY-MM": true }
+// FIREBASE CONFIG
 // ══════════════════════════════════════════
-function loadData() {
+const firebaseConfig = {
+  apiKey: "AIzaSyAGbQ3JF1vN3G9hukHCdFmrWCyF2AYNbnE",
+  authDomain: "agenda-fisio-f4b5b.firebaseapp.com",
+  projectId: "agenda-fisio-f4b5b",
+  storageBucket: "agenda-fisio-f4b5b.firebasestorage.app",
+  messagingSenderId: "129323107310",
+  appId: "1:129323107310:web:3a9c7422efda3e44b204ff"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const firestore  = getFirestore(firebaseApp);
+const DB_DOC     = doc(firestore, 'agenda', 'dados');
+
+// ══════════════════════════════════════════
+// DATA — carrega do Firestore, fallback vazio
+// ══════════════════════════════════════════
+let db = { patients: [], sessions: {}, nf: {}, notes: {} };
+
+async function loadData() {
   try {
-    const raw = JSON.parse(localStorage.getItem('fisio_v4') || 'null');
-    if (raw) return raw;
-    // Migrate from v3
-    const v3 = JSON.parse(localStorage.getItem('fisio_v3') || 'null');
-    if (v3) return migrateV3(v3);
-    return { patients: [], sessions: {}, nf: {} };
-  } catch(e) { return { patients: [], sessions: {}, nf: {} }; }
+    const snap = await getDoc(DB_DOC);
+    if (snap.exists()) {
+      db = snap.data();
+      if (!db.patients) db.patients = [];
+      if (!db.sessions) db.sessions = {};
+      if (!db.nf)       db.nf = {};
+      if (!db.notes)    db.notes = {};
+    }
+  } catch(e) { console.error('Erro ao carregar dados:', e); }
 }
 
-function migrateV3(v3) {
-  const db = { patients: [], sessions: {}, nf: {} };
-  (v3.patients || []).forEach(p => {
-    const pkgId = 'pkg_' + p.id;
-    db.patients.push({
-      id: p.id, name: p.name,
-      packages: [{ id: pkgId, sessionsTotal: p.sessionsTotal || 0, packageValue: p.packageValue || 0, completed: false }]
-    });
-  });
-  Object.keys(v3.sessions || {}).forEach(date => {
-    db.sessions[date] = v3.sessions[date].map(entry => {
-      const e = typeof entry === 'string' ? { id: entry, time: '' } : entry;
-      const p = db.patients.find(x => x.id === e.id);
-      return { id: e.id, time: e.time || '', packageId: p ? p.packages[0].id : '' };
-    });
-  });
-  Object.keys(v3.nf || {}).forEach(key => {
-    // key was "patientId_YYYY-MM" → new key "patientId_pkgId_YYYY-MM"
-    const [pid, ...rest] = key.split('_');
-    const p = db.patients.find(x => x.id === pid);
-    if (p) db.nf[`${pid}_${p.packages[0].id}_${rest.join('_')}`] = v3.nf[key];
-  });
-  return db;
+async function saveData() {
+  try {
+    await setDoc(DB_DOC, db);
+  } catch(e) { console.error('Erro ao salvar dados:', e); }
 }
-
-function saveData() { localStorage.setItem('fisio_v4', JSON.stringify(db)); }
-let db = loadData();
 
 const MONTHS       = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const MONTHS_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -1240,7 +1246,13 @@ function shareMonthlyReport() {
 }
 
 // ── INIT ────────────────────────────────
-initCalendar();
+async function init() {
+  document.getElementById('loading-screen').style.display = 'flex';
+  await loadData();
+  document.getElementById('loading-screen').style.display = 'none';
+  initCalendar();
+}
+init();
 </script>
 </body>
 </html>
