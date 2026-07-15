@@ -644,7 +644,6 @@ function updateCalendarSummary() {
 
 // ── DAY SHEET ────────────────────────────
 function openDaySheet(dateStr) {
-  if (db.patients.length === 0) { toast('Cadastre pacientes primeiro'); return; }
   sheetDate = dateStr;
   const [y,m,d] = dateStr.split('-').map(Number);
   const dt = new Date(y, m-1, d);
@@ -678,6 +677,10 @@ function renderNotePreview() {
   }
 }
 function renderSheetBody() {
+  if (db.patients.length === 0) {
+    document.getElementById('sheet-body').innerHTML = `<div style="text-align:center;padding:24px 0;color:var(--gray);font-size:14px;">Nenhum paciente cadastrado.<br>Vá em <strong>Pacientes</strong> para adicionar.</div>`;
+    return;
+  }
   document.getElementById('sheet-body').innerHTML = db.patients.map(p => {
     const checked = sheetChecked.has(p.id);
     const data = sheetChecked.get(p.id) || {};
