@@ -1469,16 +1469,18 @@ async function fetchAndSaveNews() {
 
 async function loadNews() {
   const todayKey = getTodayNewsKey();
-  let newsData = null;
   try {
     const snap = await getDoc(NEWS_DOC);
     if (snap.exists()) {
       const saved = snap.data();
-      if (saved.date === todayKey && saved.articles?.length >= 2) newsData = saved;
+      if (saved.date === todayKey && saved.articles?.length >= 1) {
+        renderNews(saved);
+        return;
+      }
     }
   } catch(e) {}
-  if (!newsData) newsData = await fetchAndSaveNews();
-  renderNews(newsData);
+  // No news yet today — show friendly message
+  renderNews(null);
 }
 
 let currentNewsData = null;
