@@ -323,6 +323,19 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.104.549 4.076 1.504 5.798L0 24l6.357-1.479A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.865 0-3.605-.5-5.108-1.365l-.367-.217-3.777.879.942-3.68-.239-.38A9.937 9.937 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
         Relatório mensal via WhatsApp
       </button>
+
+      <!-- NEWS PANEL -->
+      <div style="margin:0 12px 16px;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
+          <span style="font-size:16px;">🌿</span>
+          <span style="font-size:11px;font-weight:700;color:var(--gray);text-transform:uppercase;letter-spacing:0.5px;">Boas notícias do dia</span>
+        </div>
+        <div id="news-container">
+          <div style="background:white;border-radius:14px;border:1px solid var(--border);padding:16px;text-align:center;">
+            <div style="font-size:13px;color:var(--gray);">Carregando notícias...</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1356,6 +1369,106 @@ window.openNewPackageSheet = openNewPackageSheet;
 window.saveNewPackage      = saveNewPackage;
 window.shareReport         = shareReport;
 window.shareMonthlyReport  = shareMonthlyReport;
+window.loadNews            = loadNews;
+
+// ── NEWS ─────────────────────────────────
+const NEWS_API_KEY = '49b74a852ee84f22a652b679c78c1ad3';
+const NEWS_DOC     = doc(firestore, 'agenda', 'noticias');
+
+const CATEGORY_CONFIG = {
+  science: { label: 'Ciência',  emoji: '🧬', color: '#C4727A' },
+  nature:  { label: 'Natureza', emoji: '🌿', color: '#4A9B6F' },
+  health:  { label: 'Saúde',   emoji: '💚', color: '#4A9B6F' },
+  animals: { label: 'Animais', emoji: '🐾', color: '#5B85C4' },
+};
+
+const BAD_WORDS = ['guerra','morte','morto','crime','assassin','ataque','violên','terroris','golpe','escândalo','crise','acidente','tragédia','desastre','corrupção','fraude','prisão','preso','condenado','tiro','bomb','policia','roubo'];
+
+function getTodayNewsKey() {
+  const now = new Date();
+  if (now.getHours() < 8) {
+    const d = new Date(now); d.setDate(d.getDate()-1);
+    return d.toISOString().split('T')[0];
+  }
+  return now.toISOString().split('T')[0];
+}
+
+function isNegative(text) {
+  const t = (text||'').toLowerCase();
+  return BAD_WORDS.some(w => t.includes(w));
+}
+
+async function fetchAndSaveNews() {
+  const queries = [
+    'animais+salvos OR natureza+recupera OR floresta',
+    'ciência+descoberta OR pesquisa+cura OR saúde+avanço',
+    'bem-estar OR voluntários OR sustentabilidade'
+  ];
+  const allArticles = [];
+  for (const q of queries) {
+    try {
+      const url = `https://newsapi.org/v2/everything?q=${encodeURIComponent(q)}&language=pt&sortBy=publishedAt&pageSize=10&apiKey=${NEWS_API_KEY}`;
+      const res  = await fetch(url);
+      const json = await res.json();
+      if (json.articles) allArticles.push(...json.articles);
+    } catch(e) {}
+  }
+  const seen = new Set();
+  const filtered = allArticles.filter(a => {
+    if (!a.title || !a.description || seen.has(a.title)) return false;
+    if (isNegative(a.title) || isNegative(a.description)) return false;
+    if (a.title === '[Removed]') return false;
+    seen.add(a.title); return true;
+  });
+  const picked = filtered.slice(0,2);
+  if (!picked.length) return null;
+  const cats = ['science','nature'];
+  const newsData = {
+    date: getTodayNewsKey(),
+    articles: picked.map((a,i) => ({
+      title: a.title, description: a.description,
+      url: a.url, source: a.source?.name||'', category: cats[i]||'nature'
+    }))
+  };
+  try { await setDoc(NEWS_DOC, newsData); } catch(e) {}
+  return newsData;
+}
+
+async function loadNews() {
+  const todayKey = getTodayNewsKey();
+  let newsData = null;
+  try {
+    const snap = await getDoc(NEWS_DOC);
+    if (snap.exists()) {
+      const saved = snap.data();
+      if (saved.date === todayKey && saved.articles?.length >= 2) newsData = saved;
+    }
+  } catch(e) {}
+  if (!newsData) newsData = await fetchAndSaveNews();
+  renderNews(newsData);
+}
+
+function renderNews(newsData) {
+  const el = document.getElementById('news-container');
+  if (!el) return;
+  if (!newsData?.articles?.length) {
+    el.innerHTML = `<div style="background:white;border-radius:14px;border:1px solid var(--border);padding:16px;text-align:center;font-size:13px;color:var(--gray);">Não foi possível carregar as notícias hoje.</div>`;
+    return;
+  }
+  const bgColors = ['#EAF4F1','#F9EDEE'];
+  el.innerHTML = newsData.articles.map((a,i) => {
+    const cfg = CATEGORY_CONFIG[a.category]||CATEGORY_CONFIG.nature;
+    return `<div style="background:white;border-radius:14px;border:1px solid var(--border);padding:13px 14px;margin-bottom:8px;display:flex;gap:12px;align-items:flex-start;cursor:pointer;" onclick="window.open('${a.url}','_blank')">
+      <div style="width:44px;height:44px;border-radius:10px;background:${bgColors[i]};display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">${cfg.emoji}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:10px;font-weight:700;color:${cfg.color};text-transform:uppercase;letter-spacing:0.4px;margin-bottom:3px;">${cfg.label}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--dark);line-height:1.4;margin-bottom:3px;">${a.title}</div>
+        <div style="font-size:11px;color:var(--gray);line-height:1.4;">${(a.description||'').substring(0,100)}${(a.description||'').length>100?'...':''}</div>
+        <div style="font-size:10px;color:var(--gray);margin-top:4px;opacity:0.7;">${a.source}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
 
 // ── INIT ────────────────────────────────
 onAuthStateChanged(auth, async (user) => {
@@ -1364,6 +1477,7 @@ onAuthStateChanged(auth, async (user) => {
     await loadData();
     showApp();
     initCalendar();
+    loadNews(); // load news async, no need to await
   } else {
     showLoginScreen();
   }
