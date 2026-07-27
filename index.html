@@ -142,7 +142,8 @@
   .pkg-tabs-wrap::-webkit-scrollbar { display: none; }
   .pkg-tab { padding: 7px 14px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--white); font-size: 13px; font-weight: 500; color: var(--gray); cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: all 0.15s; }
   .pkg-tab.active { background: var(--primary); border-color: var(--primary); color: white; font-weight: 700; }
-  .pkg-tab.done-tab.active { background: var(--slate); border-color: var(--slate); }
+  .pkg-tab.done-tab { background: var(--purple-light); border-color: var(--purple); color: var(--purple); }
+  .pkg-tab.done-tab.active { background: var(--purple); border-color: var(--purple); color: white; }
   .new-pkg-btn { padding: 7px 14px; border-radius: 20px; border: 1.5px dashed var(--primary-mid); background: var(--primary-light); font-size: 13px; font-weight: 600; color: var(--primary); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
 
   /* PROGRESS CARD */
@@ -327,6 +328,14 @@
         </div>
         <div class="cal-days" id="cal-days"></div>
       </div>
+      <!-- PATIENT FILTER -->
+      <div style="padding:0 12px 10px;display:flex;gap:8px;align-items:center;">
+        <select id="patient-filter" onchange="applyPatientFilter()" style="flex:1;padding:10px 14px;border:1.5px solid var(--border);border-radius:11px;font-size:14px;font-family:inherit;color:var(--dark);background:var(--white);outline:none;appearance:none;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%239A8585%22 stroke-width=%222%22><path d=%22M6 9l6 6 6-6%22/></svg>');background-repeat:no-repeat;background-position:right 12px center;background-size:18px;">
+          <option value="">👥 Todos os pacientes</option>
+        </select>
+        <button id="filter-clear-btn" onclick="clearPatientFilter()" style="display:none;width:34px;height:34px;border-radius:50%;border:1.5px solid var(--border);background:var(--white);cursor:pointer;font-size:16px;color:var(--gray);flex-shrink:0;display:none;align-items:center;justify-content:center;">✕</button>
+      </div>
+
       <div class="month-bar">
         <div class="month-stat"><div class="ms-val" id="ms-days">0</div><div class="ms-lbl">Dias trabalhados</div></div>
         <div class="month-stat"><div class="ms-val" id="ms-sessions">0</div><div class="ms-lbl">Atendimentos</div></div>
@@ -643,6 +652,7 @@ const MONTHS_SHORT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out
 const WEEKDAYS     = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
 
 let currentYear, currentMonth;
+let filteredPatientId = null;
 let sheetDate = null;
 let sheetChecked = new Map(); // patientId -> { time, packageId }
 let currentDetailId = null;
@@ -670,10 +680,13 @@ function sessionTimeForPatient(date, patientId) {
 
 // Returns calendar class for a date
 function dayStatus(date) {
-  const entries = db.sessions[date] || [];
+  let entries = db.sessions[date] || [];
   if (!entries.length) return null;
-  const today = todayKey();
+  // Apply patient filter
+  if (filteredPatientId) entries = entries.filter(e => e.id === filteredPatientId);
+  if (!entries.length) return null;
 
+  const today = todayKey();
   const hasPkgDone = entries.some(e => {
     const p = db.patients.find(x => x.id === e.id);
     const pkg = p?.packages.find(pk => pk.id === e.packageId);
@@ -684,13 +697,8 @@ function dayStatus(date) {
     const pkg = p?.packages.find(pk => pk.id === e.packageId);
     return pkg && !pkg.completed;
   });
-
   const isPast   = date <= today;
-  const isFuture = date > today;
-
-  if (hasPkgDone && hasActive) {
-    return isPast ? 'mixed-past' : 'mixed-future';
-  }
+  if (hasPkgDone && hasActive) return isPast ? 'mixed-past' : 'mixed-future';
   if (hasPkgDone) return 'pkg-done';
   if (isPast)     return 'past';
   return 'future';
@@ -746,6 +754,34 @@ function closeOverlay(id) { document.getElementById(id).classList.remove('open')
 document.querySelectorAll('.overlay').forEach(o => o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); }));
 
 // ── CALENDAR ─────────────────────────────
+function applyPatientFilter() {
+  const sel = document.getElementById('patient-filter');
+  filteredPatientId = sel.value || null;
+  const btn = document.getElementById('filter-clear-btn');
+  if (btn) btn.style.display = filteredPatientId ? 'flex' : 'none';
+  renderCalendar();
+  updateCalendarSummary();
+}
+
+function clearPatientFilter() {
+  filteredPatientId = null;
+  const sel = document.getElementById('patient-filter');
+  if (sel) sel.value = '';
+  const btn = document.getElementById('filter-clear-btn');
+  if (btn) btn.style.display = 'none';
+  renderCalendar();
+  updateCalendarSummary();
+}
+
+function updatePatientFilterOptions() {
+  const sel = document.getElementById('patient-filter');
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">👥 Todos os pacientes</option>'
+    + db.patients.map(p => `<option value="${p.id}" ${p.id === current ? 'selected' : ''}>${p.name}</option>`).join('');
+  filteredPatientId = current || null;
+}
+
 function initCalendar() {
   const now = new Date();
   currentYear = now.getFullYear(); currentMonth = now.getMonth();
@@ -779,8 +815,19 @@ function renderCalendar() {
 }
 function updateCalendarSummary() {
   const prefix = `${currentYear}-${String(currentMonth+1).padStart(2,'0')}`;
-  const daysWorked = Object.keys(db.sessions).filter(k => k.startsWith(prefix) && db.sessions[k].length > 0);
-  const totalSessions = daysWorked.reduce((a,k) => a + db.sessions[k].length, 0);
+  const daysWorked = Object.keys(db.sessions).filter(k => {
+    if (!k.startsWith(prefix)) return false;
+    const entries = filteredPatientId
+      ? db.sessions[k].filter(e => e.id === filteredPatientId)
+      : db.sessions[k];
+    return entries.length > 0;
+  });
+  const totalSessions = daysWorked.reduce((a,k) => {
+    const entries = filteredPatientId
+      ? db.sessions[k].filter(e => e.id === filteredPatientId)
+      : db.sessions[k];
+    return a + entries.length;
+  }, 0);
   document.getElementById('ms-days').textContent     = daysWorked.length;
   document.getElementById('ms-sessions').textContent = totalSessions;
 }
@@ -1016,6 +1063,7 @@ function savePatient() {
     toast('Paciente cadastrado ✓');
   }
   saveData(); closeOverlay('new-patient-overlay');
+  updatePatientFilterOptions();
   if (editingPatientId) openDetail(editingPatientId, currentPkgId);
   else renderPatientList();
 }
@@ -1073,7 +1121,7 @@ function openDetail(patientId, pkgId) {
 
   // Package tabs
   let tabsHtml = p.packages.map((pk, i) => {
-    const label = `Pacote ${i+1}${pk.completed ? ' ✓' : ''}`;
+    const label = pk.completed ? `✓ Pacote ${i+1}` : `Pacote ${i+1}`;
     const isDone = pk.completed;
     const isActive = pk.id === currentPkgId;
     return `<div class="pkg-tab ${isActive?'active':''} ${isDone?'done-tab':''}" onclick="openDetail('${patientId}','${pk.id}')">${label}</div>`;
@@ -1438,8 +1486,11 @@ window.deletePatient       = deletePatient;
 window.openEditPatientSheet= openEditPatientSheet;
 window.openDetail          = openDetail;
 window.toggleNF            = toggleNF;
-window.selectPkgSize       = selectPkgSize;
-window.selectNewPkgSize    = selectNewPkgSize;
+window.selectPkgSize            = selectPkgSize;
+window.selectNewPkgSize         = selectNewPkgSize;
+window.applyPatientFilter        = applyPatientFilter;
+window.clearPatientFilter        = clearPatientFilter;
+window.updatePatientFilterOptions = updatePatientFilterOptions;
 window.removeSession       = removeSession;
 window.openSessionEdit     = openSessionEdit;
 window.toggleEditTime      = toggleEditTime;
@@ -1590,6 +1641,7 @@ onAuthStateChanged(auth, async (user) => {
     await loadData();
     showApp();
     initCalendar();
+    updatePatientFilterOptions();
     loadNews(); // load news async, no need to await
   } else {
     showLoginScreen();
