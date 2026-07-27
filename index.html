@@ -442,10 +442,15 @@
       <div class="sheet-header"><h2 id="patient-form-title">Novo paciente</h2></div>
       <div class="sheet-body">
         <div class="form-group"><label>Nome completo</label><input type="text" id="p-name" placeholder="Ex: Carlos Silva" autocomplete="off"></div>
-        <div class="form-row">
-          <div class="form-group"><label>Total de sessões</label><input type="number" id="p-sessions-total" placeholder="Ex: 10" min="1"></div>
-          <div class="form-group"><label>Valor do pacote (R$)</label><input type="number" id="p-value" placeholder="Ex: 1500" min="0" step="0.01"></div>
+        <div class="form-group">
+          <label>Tamanho do pacote</label>
+          <div style="display:flex;gap:10px;">
+            <button type="button" id="btn-pkg-5"  onclick="selectPkgSize(5)"  style="flex:1;padding:13px;border-radius:11px;border:1.5px solid var(--border);background:var(--gray-light);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.15s;">5 sessões</button>
+            <button type="button" id="btn-pkg-10" onclick="selectPkgSize(10)" style="flex:1;padding:13px;border-radius:11px;border:1.5px solid var(--border);background:var(--gray-light);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.15s;">10 sessões</button>
+          </div>
+          <input type="hidden" id="p-sessions-total" value="">
         </div>
+        <div class="form-group"><label>Valor do pacote (R$)</label><input type="number" id="p-value" placeholder="Ex: 1500" min="0" step="0.01"></div>
       </div>
       <div class="sheet-footer">
         <button class="btn-primary" onclick="savePatient()">Salvar paciente</button>
@@ -461,10 +466,15 @@
       <div class="sheet-handle"></div>
       <div class="sheet-header"><h2>Novo pacote</h2><p id="new-pkg-patient-name"></p></div>
       <div class="sheet-body">
-        <div class="form-row">
-          <div class="form-group"><label>Total de sessões</label><input type="number" id="pkg-sessions" placeholder="Ex: 10" min="1"></div>
-          <div class="form-group"><label>Valor (R$)</label><input type="number" id="pkg-value" placeholder="Ex: 1500" min="0" step="0.01"></div>
+        <div class="form-group">
+          <label>Tamanho do pacote</label>
+          <div style="display:flex;gap:10px;">
+            <button type="button" id="btn-newpkg-5"  onclick="selectNewPkgSize(5)"  style="flex:1;padding:13px;border-radius:11px;border:1.5px solid var(--border);background:var(--gray-light);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.15s;">5 sessões</button>
+            <button type="button" id="btn-newpkg-10" onclick="selectNewPkgSize(10)" style="flex:1;padding:13px;border-radius:11px;border:1.5px solid var(--border);background:var(--gray-light);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.15s;">10 sessões</button>
+          </div>
+          <input type="hidden" id="pkg-sessions" value="">
         </div>
+        <div class="form-group"><label>Valor (R$)</label><input type="number" id="pkg-value" placeholder="Ex: 1500" min="0" step="0.01"></div>
       </div>
       <div class="sheet-footer">
         <button class="btn-primary" onclick="saveNewPackage()">Iniciar novo pacote</button>
@@ -694,10 +704,8 @@ function checkAutoComplete(patientId, pkgId) {
   if (!pkg || pkg.completed) return;
   const done = doneSessionsForPackage(patientId, pkgId).length;
   if (done < pkg.sessionsTotal) return;
-  // Check all months have NF issued
-  const allSessions = sessionsForPackage(patientId, pkgId);
-  const months = [...new Set(allSessions.map(d => d.substring(0,7)))];
-  const allNF = months.every(m => db.nf[`${patientId}_${pkgId}_${m}`]);
+  // Check NF for the whole package (not per month)
+  const allNF = !!db.nf[`${patientId}_${pkgId}`];
   if (allNF) {
     pkg.completed = true;
     pkg.completedAt = new Date().toISOString();
@@ -942,6 +950,26 @@ function renderPatientList() {
 }
 
 // ── NEW/EDIT PATIENT ─────────────────────
+function selectPkgSize(n) {
+  document.getElementById('p-sessions-total').value = n;
+  const btn5  = document.getElementById('btn-pkg-5');
+  const btn10 = document.getElementById('btn-pkg-10');
+  const activeStyle  = `flex:1;padding:13px;border-radius:11px;border:1.5px solid var(--primary);background:var(--primary-light);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--primary);`;
+  const normalStyle  = `flex:1;padding:13px;border-radius:11px;border:1.5px solid var(--border);background:var(--gray-light);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;`;
+  btn5.style.cssText  = n === 5  ? activeStyle : normalStyle;
+  btn10.style.cssText = n === 10 ? activeStyle : normalStyle;
+}
+
+function selectNewPkgSize(n) {
+  document.getElementById('pkg-sessions').value = n;
+  const btn5  = document.getElementById('btn-newpkg-5');
+  const btn10 = document.getElementById('btn-newpkg-10');
+  const activeStyle = `flex:1;padding:13px;border-radius:11px;border:1.5px solid var(--primary);background:var(--primary-light);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;color:var(--primary);`;
+  const normalStyle = `flex:1;padding:13px;border-radius:11px;border:1.5px solid var(--border);background:var(--gray-light);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;`;
+  btn5.style.cssText  = n === 5  ? activeStyle : normalStyle;
+  btn10.style.cssText = n === 10 ? activeStyle : normalStyle;
+}
+
 function openNewPatientSheet() {
   editingPatientId = null;
   document.getElementById('patient-form-title').textContent = 'Novo paciente';
@@ -949,6 +977,11 @@ function openNewPatientSheet() {
   document.getElementById('p-sessions-total').value = '';
   document.getElementById('p-value').value = '';
   document.getElementById('btn-delete-patient').style.display = 'none';
+  // Reset pkg size buttons
+  ['btn-pkg-5','btn-pkg-10'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.cssText = 'flex:1;padding:13px;border-radius:11px;border:1.5px solid var(--border);background:var(--gray-light);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;';
+  });
   openOverlay('new-patient-overlay');
   setTimeout(() => document.getElementById('p-name').focus(), 300);
 }
@@ -961,6 +994,8 @@ function openEditPatientSheet(id) {
   document.getElementById('p-name').value = p.name;
   document.getElementById('p-sessions-total').value = pkg.sessionsTotal || '';
   document.getElementById('p-value').value = pkg.packageValue || '';
+  // Pre-select pkg size button
+  if (pkg.sessionsTotal === 5 || pkg.sessionsTotal === 10) selectPkgSize(pkg.sessionsTotal);
   document.getElementById('btn-delete-patient').style.display = 'block';
   openOverlay('new-patient-overlay');
 }
@@ -1003,6 +1038,10 @@ function openNewPackageSheet(patientId) {
   document.getElementById('new-pkg-patient-name').textContent = p.name;
   document.getElementById('pkg-sessions').value = '';
   document.getElementById('pkg-value').value = '';
+  ['btn-newpkg-5','btn-newpkg-10'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.cssText = 'flex:1;padding:13px;border-radius:11px;border:1.5px solid var(--border);background:var(--gray-light);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;';
+  });
   openOverlay('new-pkg-overlay');
 }
 function saveNewPackage() {
@@ -1122,32 +1161,29 @@ function renderDetailBody(p, pkg) {
   if (!sessions.length) {
     html += `<div class="empty-state"><div class="es-icon">📋</div><p>Nenhum atendimento neste pacote.<br>Marque os atendimentos na <strong>Agenda</strong>.</p></div>`;
   } else {
-    html += `<div class="section-card"><div class="section-title">Atendimentos & Notas Fiscais</div>`;
-    Object.keys(byMonth).sort((a,b) => b.localeCompare(a)).forEach(monthKey => {
-      const [y, m] = monthKey.split('-');
-      const nfKey    = `${p.id}_${pkg.id}_${monthKey}`;
-      const nfIssued = !!db.nf[nfKey];
-      const count    = byMonth[monthKey].length;
-      html += `<div class="nf-row">
-        <div><div class="nf-month-label">${MONTHS[parseInt(m)-1]} ${y}</div><div class="nf-count">${count} ${count===1?'atendimento':'atendimentos'}</div></div>
-        <button class="nf-badge ${nfIssued?'issued':'pending'}" onclick="toggleNF('${p.id}','${pkg.id}','${monthKey}')">${nfIssued?'✓ NF emitida':'NF pendente'}</button>
+    // NF is per-package, not per-month
+    const nfKey    = `${p.id}_${pkg.id}`;
+    const nfIssued = !!db.nf[nfKey];
+    html += `<div class="section-card">
+      <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>Atendimentos</span>
+        <button class="nf-badge ${nfIssued?'issued':'pending'}" onclick="toggleNF('${p.id}','${pkg.id}')">${nfIssued?'✓ NF emitida':'NF pendente'}</button>
       </div>`;
-      byMonth[monthKey].forEach(date => {
-        const [,dm,dd] = date.split('-');
-        const time = sessionTimeForPatient(date, p.id);
-        const boxCls = isDone ? 'session-date-box done-box' : 'session-date-box';
-        const dayCls = isDone ? 'sd-day done-day' : 'sd-day';
-        const monCls = isDone ? 'sd-month done-month' : 'sd-month';
-        const obs = sessionObsForPatient(date, p.id);
-        html += `<div class="session-item" onclick="openSessionEdit('${p.id}','${pkg.id}','${date}')" style="cursor:pointer;">
-          <div class="${boxCls}"><div class="${dayCls}">${parseInt(dd)}</div><div class="${monCls}">${MONTHS_SHORT[parseInt(dm)-1]}</div></div>
-          <div style="flex:1;min-width:0;">
-            <div class="session-label">${time ? '🕐 '+time : 'Atendimento'}</div>
-            ${obs ? `<div style="font-size:11px;color:var(--gray);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${obs}</div>` : ''}
-          </div>
-          <button class="session-del" onclick="event.stopPropagation();removeSession('${p.id}','${pkg.id}','${date}')">✕</button>
-        </div>`;
-      });
+    sessions.sort((a,b) => b.localeCompare(a)).forEach(date => {
+      const [,dm,dd] = date.split('-');
+      const time = sessionTimeForPatient(date, p.id);
+      const boxCls = isDone ? 'session-date-box done-box' : 'session-date-box';
+      const dayCls = isDone ? 'sd-day done-day' : 'sd-day';
+      const monCls = isDone ? 'sd-month done-month' : 'sd-month';
+      const obs = sessionObsForPatient(date, p.id);
+      html += `<div class="session-item" onclick="openSessionEdit('${p.id}','${pkg.id}','${date}')" style="cursor:pointer;">
+        <div class="${boxCls}"><div class="${dayCls}">${parseInt(dd)}</div><div class="${monCls}">${MONTHS_SHORT[parseInt(dm)-1]}</div></div>
+        <div style="flex:1;min-width:0;">
+          <div class="session-label">${time ? '🕐 '+time : 'Atendimento'}</div>
+          ${obs ? `<div style="font-size:11px;color:var(--gray);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${obs}</div>` : ''}
+        </div>
+        <button class="session-del" onclick="event.stopPropagation();removeSession('${p.id}','${pkg.id}','${date}')">✕</button>
+      </div>`;
     });
     html += `</div>`;
   }
@@ -1155,8 +1191,8 @@ function renderDetailBody(p, pkg) {
   document.getElementById('detail-body').innerHTML = html;
 }
 
-function toggleNF(patientId, pkgId, monthKey) {
-  const key = `${patientId}_${pkgId}_${monthKey}`;
+function toggleNF(patientId, pkgId) {
+  const key = `${patientId}_${pkgId}`;
   db.nf[key] = !db.nf[key];
   saveData();
   toast(db.nf[key] ? 'NF marcada como emitida ✓' : 'NF marcada como pendente');
@@ -1286,10 +1322,11 @@ function shareReport(patientId, pkgId) {
   const pkgIndex = p.packages.indexOf(pkg) + 1;
   let msg = `📋 *Relatório — Pacote ${pkgIndex}*\n👤 *${p.name}*\n`;
   if (pkg.packageValue) msg += `💰 Pacote: R$ ${pkg.packageValue.toLocaleString('pt-BR',{minimumFractionDigits:2})}\n`;
-  msg += `📊 ${done}/${pkg.sessionsTotal} sessões realizadas\n${pkg.completed ? '🏆 Pacote concluído ✓' : ''}\n\n`;
+  msg += `📊 ${done}/${pkg.sessionsTotal} sessões realizadas\n${pkg.completed ? '🏆 Pacote concluído ✓' : ''}\n`;
+  const nfPkg = db.nf[`${patientId}_${pkgId}`];
+  msg += `📝 NF do pacote: ${nfPkg ? 'Emitida ✓' : 'Pendente'}\n\n`;
   Object.keys(byMonth).sort((a,b)=>b.localeCompare(a)).forEach(mk => {
     const [y,m] = mk.split('-');
-    const nfKey = `${patientId}_${pkgId}_${mk}`;
     msg += `📅 *${MONTHS[parseInt(m)-1]} ${y}*\n`;
     byMonth[mk].forEach(date => {
       const [,dm,dd] = date.split('-');
@@ -1297,7 +1334,6 @@ function shareReport(patientId, pkgId) {
       const obs  = sessionObsForPatient(date, patientId);
       msg += `  • ${parseInt(dd)}/${dm}/${y}${time?' às '+time:''}${obs?' — '+obs:''}\n`;
     });
-    msg += `  📝 NF: ${db.nf[nfKey]?'Emitida ✓':'Pendente'}\n\n`;
   });
   window.open(`https://wa.me/5511968491822?text=${encodeURIComponent(msg.trim())}`, '_blank');
 }
@@ -1322,12 +1358,12 @@ function shareMonthlyReport() {
     });
   });
 
-  // NF count this month
+  // NF count — per package
   let nfCount = 0;
   let nfTotal = 0;
   Object.keys(patientStats).forEach(pid => {
     const pkgId = patientStats[pid].packageId;
-    const nfKey = `${pid}_${pkgId}_${prefix}`;
+    const nfKey = `${pid}_${pkgId}`;
     nfTotal++;
     if (db.nf[nfKey]) nfCount++;
   });
@@ -1352,7 +1388,7 @@ function shareMonthlyReport() {
     const doneTotal = doneSessionsForPackage(pid, pkgId).length;
     const allTotal  = sessionsForPackage(pid, pkgId).length;
     const remaining = Math.max((pkg.sessionsTotal || 0) - allTotal, 0);
-    const nfKey     = `${pid}_${pkgId}_${prefix}`;
+    const nfKey     = `${pid}_${pkgId}`;
     const nfIssued  = !!db.nf[nfKey];
     const monthCount = patientStats[pid].dates.length;
 
@@ -1402,6 +1438,8 @@ window.deletePatient       = deletePatient;
 window.openEditPatientSheet= openEditPatientSheet;
 window.openDetail          = openDetail;
 window.toggleNF            = toggleNF;
+window.selectPkgSize       = selectPkgSize;
+window.selectNewPkgSize    = selectNewPkgSize;
 window.removeSession       = removeSession;
 window.openSessionEdit     = openSessionEdit;
 window.toggleEditTime      = toggleEditTime;
