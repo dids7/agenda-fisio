@@ -1583,13 +1583,42 @@ async function loadNews() {
     const snap = await getDoc(NEWS_DOC);
     if (snap.exists()) {
       const saved = snap.data();
-      if (saved.date === todayKey && saved.articles?.length >= 1) {
-        renderNews(saved);
+
+      // The Apps Script saves in Firestore REST format which SDK auto-decodes
+      // but articles may come as array of maps — handle both cases
+      let articles = saved.articles || [];
+
+      // If articles is not a plain array (Firestore map format), decode it
+      if (articles && !Array.isArray(articles)) {
+        articles = Object.values(articles);
+      }
+
+      // Each article might still have Firestore value wrappers — unwrap if needed
+      articles = articles.map(a => {
+        if (a && typeof a === 'object' && a.title && typeof a.title === 'object') {
+          // Wrapped format: { title: { stringValue: "..." } }
+          return {
+            title:       a.title?.stringValue       || '',
+            description: a.description?.stringValue || '',
+            url:         a.url?.stringValue          || '',
+            source:      a.source?.stringValue       || '',
+            category:    a.category?.stringValue     || 'nature',
+            emoji:       a.emoji?.stringValue        || '🌿',
+            label:       a.label?.stringValue        || 'Natureza',
+          };
+        }
+        return a; // already plain object
+      });
+
+      const date = saved.date || '';
+      if (date === todayKey && articles.length >= 1) {
+        renderNews({ date, articles });
         return;
       }
     }
-  } catch(e) {}
-  // No news yet today — show friendly message
+  } catch(e) {
+    console.error('Erro ao carregar notícias:', e);
+  }
   renderNews(null);
 }
 
